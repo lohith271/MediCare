@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { createShareSessionToken, verifyShareSessionToken } from "@/lib/access/session";
 import crypto from "crypto";
+const dbReady = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 describe("Member 4: Temporary Share Code & Access Verification", () => {
   it("generates and verifies 8-character share session JWT token", async () => {
@@ -31,7 +32,7 @@ describe("Member 4: Temporary Share Code & Access Verification", () => {
     expect(hash1.length).toBe(64);
   });
 
-  it("enforces rate limits on failed verification attempts", async () => {
+  it.skipIf(!dbReady)("enforces rate limits on failed verification attempts", async () => {
     const testKey = `test_share_verify_${Date.now()}`;
     const limit = 5;
     const windowSec = 900;

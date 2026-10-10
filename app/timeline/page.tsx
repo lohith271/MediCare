@@ -23,6 +23,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import type { TimelineEvent } from "@/app/api/timeline/route";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 
 export default function TimelinePage() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -34,8 +36,10 @@ export default function TimelinePage() {
   const [selectedFacility, setSelectedFacility] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSource, setSelectedSource] = useState<TimelineEvent | null>(null);
+  const { session, loading: sessionLoading } = useSession();
 
   useEffect(() => {
+    if (sessionLoading || !session) return;
     async function loadTimeline() {
       try {
         setLoading(true);
@@ -50,7 +54,8 @@ export default function TimelinePage() {
       }
     }
     loadTimeline();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
 
   // Compute distinct facilities for filter
   const facilities = useMemo(() => {
@@ -105,6 +110,11 @@ export default function TimelinePage() {
       return true;
     });
   }, [events, activeFilter, selectedFacility, searchQuery]);
+
+  if (!sessionLoading && !session) return <SignInRequired />;
+  if (session && session.user.role !== "patient") {
+    return <SignInRequired message="The timeline is available to patient accounts." showLink={false} />;
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

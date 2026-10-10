@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { logAccess } from "@/lib/access/log";
+import { errorResponse, requireSignedInPatient } from "@/lib/access/patient-access";
 import crypto from "crypto";
 
 // Unambiguous 8-character code generator (excludes 0, O, 1, I, L)
 const ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+const ALLOWED_SCOPES = ["all", "allergies", "medications", "conditions", "lab_results"];
 
 function generateShareCode(): string {
   let code = "";
   for (let i = 0; i < 8; i++) {
-    const randomIndex = Math.floor(Math.random() * ALPHABET.length);
+    const randomIndex = crypto.randomInt(ALPHABET.length);
     code += ALPHABET[randomIndex];
   }
   return code;
@@ -17,24 +19,25 @@ function generateShareCode(): string {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const patient_id = auth.user.id;
+
     const body = await req.json().catch(() => ({}));
-    const { scope = ["all"], expiry = "24h", max_uses = 3, patient_id: reqPatientId } = body;
+    const { expiry = "24h", max_uses = 3 } = body;
+    const scope: unknown = body.scope ?? ["all"];
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    // Determine patient ID
-    const patient_id = user?.id || reqPatientId || body.userId;
-    if (!patient_id) {
+    if (
+      !Array.isArray(scope) ||
+      scope.length === 0 ||
+      !scope.every((s) => typeof s === "string" && ALLOWED_SCOPES.includes(s))
+    ) {
       return NextResponse.json(
-        { error: "Unauthorized or patient ID missing" },
-        { status: 401 }
+        { error: `Scope must be one or more of: ${ALLOWED_SCOPES.join(", ")}` },
+        { status: 400 }
       );
     }
 
-    // Generate code and hash
     const rawCode = generateShareCode();
     const code_hash = crypto.createHash("sha256").update(rawCode).digest("hex");
 
@@ -55,28 +58,26 @@ export async function POST(req: Request) {
     }
 
     const expires_at_iso = expiresAt.toISOString();
+    const uses = Number(max_uses) || 3;
 
-    // Insert into DB
-    const { data: shareData, error: dbError } = await supabase
+    const { data: shareData, error: dbError } = await createAdminClient()
       .from("shares")
       .insert({
         patient_id,
         code_hash,
         scope,
         expires_at: expires_at_iso,
-        max_uses: Number(max_uses) || 3,
+        max_uses: uses,
         use_count: 0,
       })
       .select("id")
       .single();
-
-    if (dbError && dbError.code !== "PGRST116") {
-      console.warn("DB insert error, proceeding with generated share response:", dbError);
+    if (dbError || !shareData) {
+      throw new Error(`Creating share code failed: ${dbError?.message ?? "unknown error"}`);
     }
 
-    const share_id = shareData?.id || `share-${Date.now()}`;
+    const share_id: string = shareData.id;
 
-    // Log access event
     await logAccess({
       patient_id,
       actor_type: "patient",
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
         share_id,
         scope,
         expires_at: expires_at_iso,
-        max_uses: Number(max_uses) || 3,
+        max_uses: uses,
       },
     });
 
@@ -95,13 +96,10 @@ export async function POST(req: Request) {
       code: rawCode,
       share_id,
       expires_at: expires_at_iso,
-      max_uses: Number(max_uses) || 3,
+      max_uses: uses,
       scope,
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "Failed to create share code" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return errorResponse(err, "Failed to create share code");
   }
 }

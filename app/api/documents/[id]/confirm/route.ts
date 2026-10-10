@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { documentsStore } from "@/lib/documents/store";
+import { withFileUrl } from "@/lib/documents/links";
 import { MedicalDataExtract } from "@/lib/llm/adapter";
+import { errorResponse, requireSignedInPatient } from "@/lib/access/patient-access";
 
 export const runtime = "nodejs";
 
@@ -10,9 +12,12 @@ interface RouteContext {
 
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const patientId = auth.user.id;
     const { id } = await context.params;
 
-    const doc = documentsStore.getById(id);
+    const doc = await documentsStore.getById(patientId, id);
     if (!doc) {
       return NextResponse.json(
         { error: `Document with ID "${id}" was not found` },
@@ -29,7 +34,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const confirmedData = payload.reviewed_data || doc.draft_json;
 
-    // Mock inserts into individual clinical tables:
+    // Counts of the extracted items. The clinical tables are not written here yet.
     let medsCount = 0;
     let labsCount = 0;
     let diagCount = 0;
@@ -50,8 +55,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // Update document status to confirmed
-    const updatedDoc = documentsStore.updateStatus(id, "confirmed", {
+    const updated = await documentsStore.updateStatus(patientId, id, "confirmed", {
       draft_json: confirmedData,
     });
 
@@ -59,7 +63,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       success: true,
       message: "Document confirmed and clinical records successfully synchronized",
       document_id: id,
-      document: updatedDoc,
+      document: updated ? await withFileUrl(updated) : null,
       records_created: {
         medications: medsCount,
         lab_results: labsCount,
@@ -69,9 +73,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     });
   } catch (error: unknown) {
     console.error("Confirmation error:", error);
-    return NextResponse.json(
-      { error: (error as Error).message || "Internal server error during confirmation" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Internal server error during confirmation");
   }
 }

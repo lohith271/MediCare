@@ -9,7 +9,6 @@ const ScheduleOverrideSchema = z.object({
     .array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:MM format"))
     .min(1, "At least one scheduled time is required")
     .max(4, "Cannot specify more than 4 times per day"),
-  patient_id: z.string().optional(),
 });
 
 export async function PUT(
@@ -28,10 +27,10 @@ export async function PUT(
       );
     }
 
-    const { times, patient_id } = parsed.data;
+    const { times } = parsed.data;
 
     // Resolve patient context & check ownership
-    const { error, context } = await resolvePatientContext(patient_id);
+    const { error, context } = await resolvePatientContext();
     if (error) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

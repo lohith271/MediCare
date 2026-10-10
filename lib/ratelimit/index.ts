@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 interface RateLimitResult {
   success: boolean;
@@ -6,12 +6,11 @@ interface RateLimitResult {
   resetSeconds: number;
 }
 
-// In-memory fallback map for development / unit test environments where Supabase DB is unavailable
-const memoryRateLimits = new Map<string, { count: number; windowStart: number }>();
-
 /**
- * Serverless & DB-backed rate limiter using the `rate_limits` table.
- * Fallback to memory map if DB connection fails.
+ * DB-backed rate limiter using the `rate_limits` table.
+ * The table has RLS enabled with no policies, so it is accessed with the
+ * service-role client. Database errors are thrown; there is no in-memory fallback,
+ * because a per-process counter is not a real limit on serverless hosts.
  */
 export async function checkRateLimit(
   key: string,
@@ -20,86 +19,50 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const now = Math.floor(Date.now() / 1000);
   const nowIso = new Date().toISOString();
+  const supabase = createAdminClient();
 
-  try {
-    const supabase = await createClient();
-    const { data: existing, error } = await supabase
+  const { data: existing, error } = await supabase
+    .from("rate_limits")
+    .select("*")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) throw new Error(`Rate limit check failed: ${error.message}`);
+
+  if (!existing) {
+    const { error: insertError } = await supabase
       .from("rate_limits")
-      .select("*")
-      .eq("key", key)
-      .single();
-
-    if (error && error.code !== "PGRST116") {
-      // Record not found is PGRST116, other errors trigger fallback
-      throw error;
-    }
-
-    if (!existing) {
-      // Create new entry
-      await supabase.from("rate_limits").insert({
-        key,
-        window_start: nowIso,
-        count: 1,
-      });
-      return { success: true, remaining: limit - 1, resetSeconds: windowSeconds };
-    }
-
-    const windowStartSec = Math.floor(new Date(existing.window_start).getTime() / 1000);
-    const elapsed = now - windowStartSec;
-
-    if (elapsed > windowSeconds) {
-      // Window expired, reset counter
-      await supabase
-        .from("rate_limits")
-        .update({
-          window_start: nowIso,
-          count: 1,
-        })
-        .eq("key", key);
-      return { success: true, remaining: limit - 1, resetSeconds: windowSeconds };
-    }
-
-    if (existing.count >= limit) {
-      // Exceeded limit
-      const resetSeconds = Math.max(1, windowSeconds - elapsed);
-      return { success: false, remaining: 0, resetSeconds };
-    }
-
-    // Increment count
-    const newCount = existing.count + 1;
-    await supabase
-      .from("rate_limits")
-      .update({ count: newCount })
-      .eq("key", key);
-
-    return {
-      success: true,
-      remaining: limit - newCount,
-      resetSeconds: Math.max(1, windowSeconds - elapsed),
-    };
-  } catch (_err) {
-    // Memory fallback if DB is not reachable
-    const entry = memoryRateLimits.get(key);
-    if (!entry) {
-      memoryRateLimits.set(key, { count: 1, windowStart: now });
-      return { success: true, remaining: limit - 1, resetSeconds: windowSeconds };
-    }
-
-    const elapsed = now - entry.windowStart;
-    if (elapsed > windowSeconds) {
-      memoryRateLimits.set(key, { count: 1, windowStart: now });
-      return { success: true, remaining: limit - 1, resetSeconds: windowSeconds };
-    }
-
-    if (entry.count >= limit) {
-      return { success: false, remaining: 0, resetSeconds: Math.max(1, windowSeconds - elapsed) };
-    }
-
-    entry.count += 1;
-    return {
-      success: true,
-      remaining: limit - entry.count,
-      resetSeconds: Math.max(1, windowSeconds - elapsed),
-    };
+      .insert({ key, window_start: nowIso, count: 1 });
+    if (insertError) throw new Error(`Rate limit write failed: ${insertError.message}`);
+    return { success: true, remaining: limit - 1, resetSeconds: windowSeconds };
   }
+
+  const windowStartSec = Math.floor(new Date(existing.window_start).getTime() / 1000);
+  const elapsed = now - windowStartSec;
+
+  if (elapsed > windowSeconds) {
+    const { error: resetError } = await supabase
+      .from("rate_limits")
+      .update({ window_start: nowIso, count: 1 })
+      .eq("key", key);
+    if (resetError) throw new Error(`Rate limit reset failed: ${resetError.message}`);
+    return { success: true, remaining: limit - 1, resetSeconds: windowSeconds };
+  }
+
+  if (existing.count >= limit) {
+    const resetSeconds = Math.max(1, windowSeconds - elapsed);
+    return { success: false, remaining: 0, resetSeconds };
+  }
+
+  const newCount = existing.count + 1;
+  const { error: incError } = await supabase
+    .from("rate_limits")
+    .update({ count: newCount })
+    .eq("key", key);
+  if (incError) throw new Error(`Rate limit update failed: ${incError.message}`);
+
+  return {
+    success: true,
+    remaining: limit - newCount,
+    resetSeconds: Math.max(1, windowSeconds - elapsed),
+  };
 }

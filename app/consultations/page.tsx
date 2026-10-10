@@ -31,10 +31,12 @@ import {
   FollowUpAppointment,
   PrescribedMedicine,
 } from "@/lib/types/database";
-import { getLocalSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 
 export default function ConsultationsPage() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { session, loading: sessionLoading } = useSession();
+  // null while the session loads; false when there is no patient session.
+  const authenticated = sessionLoading ? null : session?.user.role === "patient";
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
   const [appointments, setAppointments] = useState<FollowUpAppointment[]>([]);
@@ -79,12 +81,10 @@ export default function ConsultationsPage() {
   const [apptReason, setApptReason] = useState("");
   const [apptInstructions, setApptInstructions] = useState("");
 
-  const fetchData = async (overrideId?: string) => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const session = getLocalSession();
-      const patientId = overrideId || session?.user?.id || "demo-patient-001";
-      const res = await fetch(`/api/encounters?patient_id=${patientId}`);
+      const res = await fetch("/api/encounters");
       const data = await res.json();
 
       if (data.success) {
@@ -100,15 +100,14 @@ export default function ConsultationsPage() {
   };
 
   useEffect(() => {
-    const session = getLocalSession();
-    if (!session) {
-      setAuthenticated(false);
+    if (sessionLoading) return;
+    if (!session || session.user.role !== "patient") {
       setLoading(false);
       return;
     }
-    setAuthenticated(true);
-    fetchData(session.user.id);
-  }, []);
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
 
   const handleAddPrescriptionRow = () => {
     setPrescriptions((prev) => [
@@ -133,9 +132,6 @@ export default function ConsultationsPage() {
   const handleSaveConsultation = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
       const validMeds = prescriptions.filter((p) => p.name.trim().length > 0);
       const parsedDiags = diagInput
         .split(",")
@@ -146,7 +142,6 @@ export default function ConsultationsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patient_id: patientId,
           doctor_name: docName,
           hospital,
           kind: visitKind,
@@ -189,15 +184,11 @@ export default function ConsultationsPage() {
     if (!diseaseName) return;
 
     try {
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
       const res = await fetch("/api/encounters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "add_diagnosis",
-          patient_id: patientId,
           diagnosis: {
             name_as_written: diseaseName,
             name_canonical: diseaseCanonical || diseaseName,
@@ -233,15 +224,11 @@ export default function ConsultationsPage() {
     if (!apptDoc || !apptDate) return;
 
     try {
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
       const res = await fetch("/api/encounters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "add_appointment",
-          patient_id: patientId,
           appointment: {
             doctor_name: apptDoc,
             hospital: apptHospital,

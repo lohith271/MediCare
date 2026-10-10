@@ -8,11 +8,18 @@ import {
   addAppointment,
   updateAppointmentStatus,
 } from "@/lib/data/store";
+import {
+  errorResponse,
+  requireSignedInPatient,
+  resolvePatientAccess,
+} from "@/lib/access/patient-access";
 
-export async function GET(request: NextRequest) {
+/** Consultations, diagnoses and appointments. Readable by the patient or a "conditions" share. */
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const patientId = searchParams.get("patient_id") || "demo-patient-001";
+    const access = await resolvePatientAccess(req, "conditions");
+    if (!access.ok) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
+    const patientId = access.patientId;
 
     const [encounters, diagnoses, appointments] = await Promise.all([
       getEncounters(patientId),
@@ -27,17 +34,18 @@ export async function GET(request: NextRequest) {
       appointments,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to load consultations" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to load consultations");
   }
 }
 
-export async function POST(request: NextRequest) {
+/** Writes are owner-only. The patient id is the signed-in patient, never the body. */
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const patientId = body.patient_id || "demo-patient-001";
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    const patientId = auth.user.id;
+
+    const body = await req.json();
 
     if (body.action === "add_diagnosis") {
       const diag = await addDiagnosis(patientId, body.diagnosis);
@@ -57,7 +65,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Default: Create new consultation encounter
     const encounter = await createEncounter(patientId, body);
     return NextResponse.json({
       success: true,
@@ -65,16 +72,16 @@ export async function POST(request: NextRequest) {
       message: "Consultation and prescriptions saved successfully",
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to save consultation" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to save consultation");
   }
 }
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH(req: NextRequest) {
   try {
-    const body = await request.json();
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+
+    const body = await req.json();
     const { appointment_id, status } = body;
 
     if (!appointment_id || !status) {
@@ -84,15 +91,12 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updated = await updateAppointmentStatus(appointment_id, status);
+    const updated = await updateAppointmentStatus(auth.user.id, appointment_id, status);
     return NextResponse.json({
       success: updated,
       message: `Appointment marked as ${status}`,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to update appointment" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to update appointment");
   }
 }

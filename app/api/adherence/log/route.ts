@@ -10,7 +10,6 @@ const LogSchema = z.object({
   slot_key: z.string().min(1, "slot_key is required"),
   scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "scheduled_date must be YYYY-MM-DD"),
   status: z.enum(["taken", "skipped"]),
-  patient_id: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -25,10 +24,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { medication_id, slot_key, scheduled_date, status, patient_id } = parsed.data;
+    const { medication_id, slot_key, scheduled_date, status } = parsed.data;
 
     // Resolve context & check ownership
-    const { error, context } = await resolvePatientContext(patient_id);
+    const { error, context } = await resolvePatientContext();
     if (error) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

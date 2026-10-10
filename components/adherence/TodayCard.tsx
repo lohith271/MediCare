@@ -19,14 +19,12 @@ import {
 import type { ScheduledDose } from "@/lib/adherence";
 
 interface TodayCardProps {
-  patientId?: string;
   today?: string;
   onRefreshCalendar?: () => void;
 }
 
 interface TodayData {
   date: string;
-  patientId: string;
   isDemo: boolean;
   nextDose: ScheduledDose | null;
   totalScheduled: number;
@@ -63,7 +61,7 @@ const PERIOD_CONFIG = {
   Night: { icon: Moon, label: "Night", sub: "9:00 PM onwards", color: "text-blue-500" },
 };
 
-export function TodayCard({ patientId, today, onRefreshCalendar }: TodayCardProps) {
+export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loggingKey, setLoggingKey] = useState<string | null>(null);
@@ -76,7 +74,6 @@ export function TodayCard({ patientId, today, onRefreshCalendar }: TodayCardProp
   const fetchToday = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (patientId) params.set("patient_id", patientId);
       if (today) params.set("today", today);
       const query = params.toString();
       const url = `/api/adherence/today${query ? `?${query}` : ""}`;
@@ -90,7 +87,7 @@ export function TodayCard({ patientId, today, onRefreshCalendar }: TodayCardProp
     } finally {
       setLoading(false);
     }
-  }, [patientId, today]);
+  }, [today]);
 
   useEffect(() => {
     fetchToday();
@@ -107,7 +104,6 @@ export function TodayCard({ patientId, today, onRefreshCalendar }: TodayCardProp
 
     try {
       const params = new URLSearchParams();
-      if (patientId) params.set("patient_id", patientId);
       if (today) params.set("today", today);
       const query = params.toString();
       const res = await fetch(`/api/adherence/log${query ? `?${query}` : ""}`, {

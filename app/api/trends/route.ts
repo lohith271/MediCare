@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLabResults, addLabResult } from "@/lib/data/store";
 import { LabResultFlag } from "@/lib/types/database";
+import {
+  errorResponse,
+  requireSignedInPatient,
+  resolvePatientAccess,
+} from "@/lib/access/patient-access";
 
+/** Lab trend series. Readable by the patient or a "lab_results" share code. */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const patientId = searchParams.get("patient_id") || "demo-patient-001";
+    const access = await resolvePatientAccess(request, "lab_results");
+    if (!access.ok) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
+    }
+    const patientId = access.patientId;
 
     const labResults = await getLabResults(patientId);
 
@@ -65,17 +74,18 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to load trend data" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to load trend data");
   }
 }
 
+/** Records a lab reading for the signed-in patient. */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    const patientId = auth.user.id;
+
     const body = await request.json();
-    const patientId = body.patient_id || "demo-patient-001";
 
     const val = Number(body.value_num);
     let flag: LabResultFlag = body.flag || "normal";
@@ -112,9 +122,6 @@ export async function POST(request: NextRequest) {
       message: "Lab reading recorded successfully",
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to record lab reading" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to record lab reading");
   }
 }

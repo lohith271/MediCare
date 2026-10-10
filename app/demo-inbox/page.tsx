@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 import { Mail, ExternalLink, RefreshCw, Clock, Inbox, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface InboxItem {
@@ -16,6 +18,7 @@ export default function DemoInboxPage() {
   const [messages, setMessages] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMessage, setSelectedMessage] = useState<InboxItem | null>(null);
+  const { session, loading: sessionLoading } = useSession();
 
   const fetchInbox = async () => {
     setLoading(true);
@@ -37,8 +40,12 @@ export default function DemoInboxPage() {
   };
 
   useEffect(() => {
+    if (sessionLoading || !session) return;
     fetchInbox();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
+
+  if (!sessionLoading && !session) return <SignInRequired />;
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 pb-16">

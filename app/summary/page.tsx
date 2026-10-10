@@ -31,7 +31,8 @@ import {
 } from "lucide-react";
 import { TodayCard } from "@/components/adherence/TodayCard";
 import { StreakCalendar } from "@/components/adherence/StreakCalendar";
-import { getLocalSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 import type {
   ClinicalSummary,
   SummaryMedication,
@@ -90,19 +91,18 @@ export default function ClinicalSummaryPage() {
   const [adherenceRefreshKey, setAdherenceRefreshKey] = useState(0);
 
   const [isPending, startTransition] = useTransition();
+  const { session, loading: sessionLoading } = useSession();
 
   // Load summary and safety rules on mount
   async function loadData() {
     try {
       setLoading(true);
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
 
       const [sumRes, rulesRes, profRes, encRes] = await Promise.all([
-        fetch(`/api/summary?patient_id=${encodeURIComponent(patientId)}`),
-        fetch(`/api/rules?patient_id=${encodeURIComponent(patientId)}`),
-        fetch(`/api/profile?patient_id=${encodeURIComponent(patientId)}`).catch(() => null),
-        fetch(`/api/encounters?patient_id=${encodeURIComponent(patientId)}`).catch(() => null),
+        fetch("/api/summary"),
+        fetch("/api/rules"),
+        fetch("/api/profile").catch(() => null),
+        fetch("/api/encounters").catch(() => null),
       ]);
 
       if (!sumRes.ok) throw new Error("Failed to load clinical summary");
@@ -138,11 +138,14 @@ export default function ClinicalSummaryPage() {
   }
 
   useEffect(() => {
+    if (sessionLoading || !session || session.user.role !== "patient") return;
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
 
   const handleCopyHealthId = () => {
-    const hid = profile?.health_id || "MED987654321";
+    const hid = profile?.health_id;
+    if (!hid) return;
     navigator.clipboard.writeText(hid);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -259,6 +262,11 @@ export default function ClinicalSummaryPage() {
     }
   }
 
+  if (!sessionLoading && !session) return <SignInRequired />;
+  if (session && session.user.role !== "patient") {
+    return <SignInRequired message="The clinical summary is available to patient accounts." showLink={false} />;
+  }
+
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-20 text-center">
@@ -300,7 +308,7 @@ export default function ClinicalSummaryPage() {
           </div>
           <div className="text-right text-xs">
             <p className="font-bold">Patient: {profile?.full_name || "Ramesh Sharma"}</p>
-            <p>Health ID: {profile?.health_id || "MED987654321"} · Blood Group: {profile?.blood_group || "B+"}</p>
+            <p>Health ID: {profile?.health_id || "—"} · Blood Group: {profile?.blood_group || "—"}</p>
             <p>Generated: {new Date().toLocaleDateString("en-US", { dateStyle: "long" })}</p>
           </div>
         </div>
@@ -345,7 +353,7 @@ export default function ClinicalSummaryPage() {
                 </button>
               </div>
               <div className="font-mono text-sm font-extrabold text-emerald-300 tracking-wider">
-                {profile?.health_id || "MED987654321"}
+                {profile?.health_id || "—"}
               </div>
               {copied && (
                 <span className="text-[10px] text-emerald-400 font-semibold block animate-pulse">
@@ -422,7 +430,6 @@ export default function ClinicalSummaryPage() {
         {/* Today's Doses (Left Column) */}
         <div className="lg:col-span-7 space-y-6">
           <TodayCard
-            patientId={profile?.id || (getLocalSession()?.user?.id ?? "demo-patient-001")}
             key={`today-card-${adherenceRefreshKey}`}
             onRefreshCalendar={() => setAdherenceRefreshKey((k) => k + 1)}
           />
@@ -431,7 +438,6 @@ export default function ClinicalSummaryPage() {
         {/* Adherence & Streak Calendar (Top-Right Column) */}
         <div className="lg:col-span-5 space-y-6">
           <StreakCalendar
-            patientId={profile?.id || (getLocalSession()?.user?.id ?? "demo-patient-001")}
             key={`streak-calendar-${adherenceRefreshKey}`}
             onRefreshToday={() => setAdherenceRefreshKey((k) => k + 1)}
           />

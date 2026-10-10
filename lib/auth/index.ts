@@ -1,4 +1,8 @@
-import { Profile, DoctorProfile, UserRole } from "@/lib/types";
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
+import type { Profile, DoctorProfile, UserRole } from "@/lib/types";
 
 export interface AuthSession {
   user: {
@@ -10,67 +14,74 @@ export interface AuthSession {
   doctorProfile?: DoctorProfile;
 }
 
+/**
+ * Demo accounts created by `npm run seed:demo`. They are real Supabase Auth users,
+ * so they sign in through the same path as everyone else.
+ */
 export const DEMO_CREDENTIALS = {
   patient: {
     email: "patient@medicare.demo",
     password: "Password123!",
     role: "patient" as UserRole,
-    profile: {
-      id: "demo-patient-001",
-      role: "patient" as UserRole,
-      full_name: "Ramesh Sharma",
-      dob: "1978-04-12",
-      sex: "male" as const,
-      phone: "+919876543210",
-      blood_group: "B+" as const,
-      health_id: "MED987654321",
-      emergency_enabled: true,
-      emergency_fields: ["blood_group", "allergies", "conditions", "medications"],
-      emergency_access_hours: 24,
-    },
   },
   doctor: {
     email: "doctor@medicare.demo",
     password: "Password123!",
     role: "doctor" as UserRole,
-    profile: {
-      id: "demo-doctor-001",
-      role: "doctor" as UserRole,
-      full_name: "Dr. Priya Patel",
-      phone: "+919812345678",
-      health_id: "DOC123456789",
-      emergency_enabled: false,
-      emergency_fields: [],
-      emergency_access_hours: 0,
-    },
-    doctorProfile: {
-      user_id: "demo-doctor-001",
-      license_no: "KMC-48291-MED",
-      hospital: "Metro General Hospital",
-      verified: true,
-    },
   },
 };
 
-const SESSION_STORAGE_KEY = "medicare_demo_session";
-
-export function getLocalSession(): AuthSession | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-  if (!raw) return null;
+/** Returns the signed-in session from the server, or null. Uses the session cookie. */
+export async function fetchSession(): Promise<AuthSession | null> {
   try {
-    return JSON.parse(raw);
+    const res = await fetch("/api/me", { cache: "no-store", credentials: "same-origin" });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.session ?? null;
   } catch {
     return null;
   }
 }
 
-export function saveLocalSession(session: AuthSession) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const supabase = createBrowserSupabase();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
 }
 
-export function clearLocalSession() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(SESSION_STORAGE_KEY);
+export async function signOut(): Promise<void> {
+  const supabase = createBrowserSupabase();
+  await supabase.auth.signOut();
+}
+
+/**
+ * React hook for pages. `session` is null while loading and when signed out.
+ * `loading` is false once the server has answered.
+ */
+export function useSession() {
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetchSession().then((s) => {
+      if (!active) return;
+      setSession(s);
+      setLoading(false);
+    });
+    const supabase = createBrowserSupabase();
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+      } else if (event === "SIGNED_IN") {
+        fetchSession().then((s) => active && setSession(s));
+      }
+    });
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  return { session, loading };
 }

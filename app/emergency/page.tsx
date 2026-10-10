@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { AlertOctagon, Search, ShieldAlert, CheckCircle, Clock, Send, AlertTriangle, FileText, UserCheck, Stethoscope, Lock, Mail } from "lucide-react";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 
 export default function EmergencyPage() {
+  const { session, loading: sessionLoading } = useSession();
   const [identifier, setIdentifier] = useState("");
   const [unableToConsent, setUnableToConsent] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -81,6 +84,11 @@ export default function EmergencyPage() {
       setIsSubmittingRequest(false);
     }
   };
+
+  if (!sessionLoading && !session) return <SignInRequired />;
+  if (session && session.user.role !== "doctor") {
+    return <SignInRequired message="Emergency lookup is available to doctor accounts." showLink={false} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 pb-16">

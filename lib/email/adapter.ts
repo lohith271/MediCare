@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export interface SendEmailInput {
   to: string;
@@ -13,16 +13,6 @@ export interface SendEmailResult {
   inboxId?: string;
   error?: string;
 }
-
-// In-memory fallback inbox for testing when DB is unavailable
-export const memoryInbox: Array<{
-  id: string;
-  to_email: string;
-  subject: string;
-  body: string;
-  link?: string | null;
-  created_at: string;
-}> = [];
 
 /**
  * Universal Email Adapter.
@@ -77,44 +67,35 @@ export async function sendEmail({
   }
 
   // 2. Always write to `inbox` table so it's viewable in /demo-inbox
+  // The inbox table has RLS enabled with no policies, so writes use the service-role client.
   let inboxId: string | undefined;
-  const nowIso = new Date().toISOString();
-
+  let error: string | undefined;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
+    const { data, error: insertError } = await createAdminClient()
       .from("inbox")
       .insert({
         to_email: to,
         subject,
         body,
         link: link || null,
-        created_at: nowIso,
       })
       .select("id")
       .single();
-
-    if (!error && data) {
-      inboxId = data.id;
+    if (insertError || !data) {
+      error = insertError?.message || "Failed to insert inbox row";
+      console.error("[email] inbox write failed:", error);
     } else {
-      throw error || new Error("Failed to insert inbox row");
+      inboxId = data.id;
     }
-  } catch (_dbErr) {
-    // Memory fallback if Supabase DB is unreachable during testing
-    inboxId = `mem-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    memoryInbox.unshift({
-      id: inboxId,
-      to_email: to,
-      subject,
-      body,
-      link: link || null,
-      created_at: nowIso,
-    });
+  } catch (err) {
+    error = err instanceof Error ? err.message : "Inbox write failed";
+    console.error("[email] inbox write failed:", error);
   }
 
   return {
-    success: resendSuccess || true,
+    success: resendSuccess || inboxId !== undefined,
     messageId,
     inboxId,
+    error,
   };
 }

@@ -22,7 +22,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Profile, TrustedContact, BloodGroup, Sex } from "@/lib/types/database";
-import { getLocalSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 
 const BLOOD_GROUPS: BloodGroup[] = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const SEX_OPTIONS: { label: string; value: Sex }[] = [
@@ -39,7 +39,9 @@ const EMERGENCY_FIELD_OPTIONS = [
 ];
 
 export default function ProfilePage() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { session, loading: sessionLoading } = useSession();
+  // null while the session loads; false when there is no patient session.
+  const authenticated = sessionLoading ? null : session?.user.role === "patient";
   const [profile, setProfile] = useState<Profile | null>(null);
   const [trustedContacts, setTrustedContacts] = useState<TrustedContact[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
@@ -69,12 +71,10 @@ export default function ProfilePage() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactRelation, setContactRelation] = useState("Spouse");
 
-  const loadData = async (overrideId?: string) => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const session = getLocalSession();
-      const patientId = overrideId || session?.user?.id || "demo-patient-001";
-      const res = await fetch(`/api/profile?patient_id=${patientId}`);
+      const res = await fetch("/api/profile");
       const data = await res.json();
 
       if (data.success && data.profile) {
@@ -110,15 +110,14 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    const session = getLocalSession();
-    if (!session) {
-      setAuthenticated(false);
+    if (sessionLoading) return;
+    if (!session || session.user.role !== "patient") {
       setLoading(false);
       return;
     }
-    setAuthenticated(true);
-    loadData(session.user.id);
-  }, []);
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
 
   const handleCopyHealthId = () => {
     if (profile?.health_id) {
@@ -134,14 +133,10 @@ export default function ProfilePage() {
     setStatusMessage(null);
 
     try {
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patient_id: patientId,
           full_name: fullName,
           phone,
           dob,
@@ -173,15 +168,11 @@ export default function ProfilePage() {
     if (!contactName || !contactEmail) return;
 
     try {
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "add_contact",
-          patient_id: patientId,
           name: contactName,
           email: contactEmail,
           relation: contactRelation,

@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createEmergencySessionToken, verifyEmergencySessionToken } from "@/lib/access/session";
 import { checkRateLimit } from "@/lib/ratelimit";
-import { sendEmail, memoryInbox } from "@/lib/email/adapter";
+import { sendEmail } from "@/lib/email/adapter";
+import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+const dbReady = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 describe("Member 4: Emergency Doctor Lookup & Out-of-band Approval", () => {
   it("creates and verifies emergency session signed token", async () => {
@@ -22,23 +24,31 @@ describe("Member 4: Emergency Doctor Lookup & Out-of-band Approval", () => {
     expect(verified?.patient_id).toBe("pat-001");
   });
 
-  it("dispatches notification emails to demo inbox", async () => {
-    const initialCount = memoryInbox.length;
+  it.skipIf(!dbReady)("dispatches notification emails to demo inbox", async () => {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const link = "http://localhost:3000/emergency/approve?token=test123token";
 
     const result = await sendEmail({
       to: "contact@medicare.demo",
       subject: "URGENT: Emergency Access Request",
       body: "Doctor Priya Patel requested full access.",
-      link: "http://localhost:3000/emergency/approve?token=test123token",
+      link,
     });
 
     expect(result.success).toBe(true);
-    expect(memoryInbox.length).toBeGreaterThan(initialCount);
-    expect(memoryInbox[0].to_email).toBe("contact@medicare.demo");
-    expect(memoryInbox[0].link).toContain("token=test123token");
+    const { data } = await admin
+      .from("inbox")
+      .select("to_email, link")
+      .eq("link", link)
+      .limit(1);
+    expect(data?.[0]?.to_email).toBe("contact@medicare.demo");
   });
 
-  it("enforces emergency lookup doctor rate limits", async () => {
+  it.skipIf(!dbReady)("enforces emergency lookup doctor rate limits", async () => {
     const doctorKey = `test_er_lookup_doctor_${Date.now()}`;
     const limit = 3;
     const windowSec = 600;

@@ -33,11 +33,13 @@ import {
   Lock,
 } from "lucide-react";
 import { LabResult, LabResultFlag } from "@/lib/types/database";
-import { getLocalSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 
 export default function TrendsPage() {
   const router = useRouter();
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { session, loading: sessionLoading } = useSession();
+  // null while the session loads; false when there is no patient session.
+  const authenticated = sessionLoading ? null : session?.user.role === "patient";
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [series, setSeries] = useState<{
     glucose: any[];
@@ -58,12 +60,10 @@ export default function TrendsPage() {
   const [testLab, setTestLab] = useState("Metro Hospital Labs");
   const [testRefRange, setTestRefRange] = useState("70 - 99 mg/dL");
 
-  const loadData = async (overrideId?: string) => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const session = getLocalSession();
-      const patientId = overrideId || session?.user?.id || "demo-patient-001";
-      const res = await fetch(`/api/trends?patient_id=${patientId}`);
+      const res = await fetch("/api/trends");
       const data = await res.json();
 
       if (data.success) {
@@ -78,15 +78,14 @@ export default function TrendsPage() {
   };
 
   useEffect(() => {
-    const session = getLocalSession();
-    if (!session) {
-      setAuthenticated(false);
+    if (sessionLoading) return;
+    if (!session || session.user.role !== "patient") {
       setLoading(false);
       return;
     }
-    setAuthenticated(true);
-    loadData(session.user.id);
-  }, []);
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
 
   const handleTestNamePresetChange = (name: string) => {
     setTestName(name);
@@ -113,14 +112,10 @@ export default function TrendsPage() {
     if (!testValue) return;
 
     try {
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
       const res = await fetch("/api/trends", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patient_id: patientId,
           test_name: testName,
           value_num: parseFloat(testValue),
           unit: testUnit,

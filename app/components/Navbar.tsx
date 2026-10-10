@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -16,29 +16,22 @@ import {
   LayoutDashboard,
   CalendarCheck,
 } from "lucide-react";
-import { getLocalSession, clearLocalSession, AuthSession } from "@/lib/auth";
+import { signOut, useSession } from "@/lib/auth";
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const { session, loading } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    setSession(getLocalSession());
-  }, [pathname]);
-
-  const handleLogout = () => {
-    clearLocalSession();
-    setSession(null);
+  const handleLogout = async () => {
+    await signOut();
     router.push("/login");
   };
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
   // Patient portal links only show AFTER login
-  const isLoggedIn = mounted && session !== null && !isAuthPage;
+  const isLoggedIn = !loading && session !== null && !isAuthPage;
 
   const patientNavLinks = [
     { href: "/summary", label: "Overview", icon: LayoutDashboard },
@@ -109,13 +102,13 @@ export default function Navbar() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#092219] border border-emerald-500/30 text-xs text-emerald-200 hover:border-emerald-400 transition-colors"
               >
                 <div className="w-5 h-5 rounded-full bg-emerald-400/20 flex items-center justify-center text-[10px] font-bold text-emerald-300">
-                  {session.profile?.full_name?.charAt(0) || "P"}
+                  {session?.profile?.full_name?.charAt(0) || "P"}
                 </div>
                 <span className="font-semibold text-white max-w-[120px] truncate">
-                  {session.profile?.full_name || "Patient"}
+                  {session?.profile?.full_name || "Patient"}
                 </span>
                 <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300">
-                  {session.user.role}
+                  {session?.user.role}
                 </span>
               </Link>
 
@@ -168,10 +161,10 @@ export default function Navbar() {
               <div className="pb-3 border-b border-emerald-900/30 flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-white block">
-                    {session.profile?.full_name}
+                    {session?.profile?.full_name}
                   </span>
                   <span className="text-[10px] text-emerald-400/70 font-mono">
-                    Health ID: {session.profile?.health_id}
+                    Health ID: {session?.profile?.health_id}
                   </span>
                 </div>
                 <button

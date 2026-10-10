@@ -14,8 +14,7 @@ import {
   AlertCircle,
   HeartPulse,
 } from "lucide-react";
-import { DEMO_CREDENTIALS, saveLocalSession } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
+import { DEMO_CREDENTIALS, fetchSession, signInWithPassword } from "@/lib/auth";
 
 type RoleTab = "patient" | "doctor";
 
@@ -28,69 +27,40 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Quick fill helper for judges & reviewers
-  const handleQuickFill = (role: RoleTab) => {
-    setActiveTab(role);
-    const creds = DEMO_CREDENTIALS[role];
-    setEmail(creds.email);
-    setPassword(creds.password);
-    setError(null);
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** Signs in with email and password, then routes by the account's real role. */
+  const signIn = async (email: string, password: string, tab: RoleTab) => {
     setError(null);
     setSuccessMsg(null);
     setLoading(true);
 
     try {
-      // 1. Check if user is signing in with demo credentials
-      if (
-        (activeTab === "patient" && email === DEMO_CREDENTIALS.patient.email) ||
-        (activeTab === "doctor" && email === DEMO_CREDENTIALS.doctor.email)
-      ) {
-        const demo = DEMO_CREDENTIALS[activeTab];
-        saveLocalSession({
-          user: { id: demo.profile.id, email: demo.email, role: demo.role },
-          profile: demo.profile,
-          doctorProfile: "doctorProfile" in demo ? demo.doctorProfile : undefined,
-        });
-
-        setSuccessMsg(`Welcome, ${demo.profile.full_name}! Logging you in...`);
-        setTimeout(() => {
-          if (activeTab === "doctor") {
-            router.push("/emergency");
-          } else {
-            router.push("/summary");
-          }
-        }, 1000);
-        return;
-      }
-
-      // 2. Otherwise try Supabase Auth
-      const supabase = createClient();
-      const { data, error: sbError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (sbError) {
-        // If Supabase is not configured or user not found, provide clear guidance
-        if (sbError.message.includes("Invalid login credentials")) {
-          throw new Error("Invalid email or password. You can also use the demo buttons below for instant testing.");
-        }
-        throw new Error(sbError.message);
-      }
+      await signInWithPassword(email, password);
+      const session = await fetchSession();
+      const role = session?.user.role ?? tab;
 
       setSuccessMsg("Login successful! Redirecting...");
       setTimeout(() => {
-        router.push(activeTab === "doctor" ? "/emergency" : "/summary");
+        router.push(role === "doctor" ? "/emergency" : "/summary");
       }, 1000);
     } catch (err: any) {
       setError(err?.message || "An unexpected error occurred during login.");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Quick fill helper: fills the demo credentials and signs in through the same path.
+  const handleQuickFill = (role: RoleTab) => {
+    setActiveTab(role);
+    const creds = DEMO_CREDENTIALS[role];
+    setEmail(creds.email);
+    setPassword(creds.password);
+    void signIn(creds.email, creds.password, role);
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    void signIn(email, password, activeTab);
   };
 
   return (

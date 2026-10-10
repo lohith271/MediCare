@@ -1,117 +1,79 @@
 import { createClient } from "@/lib/supabase/server";
-import { DEMO_PATIENTS_DATA } from "@/seed/patients";
-import {
-  DEMO_DOSE_LOGS,
-  getDemoDoseLogs,
-  saveDemoDoseLog,
-  deleteDemoDoseLog,
-  getDemoOverrides,
-  saveDemoOverride,
-  type DoseLogRecord,
-} from "@/seed/adherence";
+import { requireSignedInPatient } from "@/lib/access/patient-access";
 import type { MedicationRecord } from "@/lib/types/database";
+
+// Adherence is patient-owned: every query runs as the signed-in patient, so RLS
+// (dose_logs, medication_schedule_overrides, medications) also applies.
+export interface DoseLogRecord {
+  id?: string;
+  patient_id: string;
+  medication_id: string;
+  slot_key: string;
+  scheduled_date: string;
+  status: "taken" | "skipped";
+  logged_at?: string;
+}
 
 export interface PatientAdherenceContext {
   patientId: string;
+  /** Kept for response compatibility. Always false now that demo data is gone. */
   isDemo: boolean;
   medications: MedicationRecord[];
   doseLogs: DoseLogRecord[];
   scheduleOverrides: Record<string, string[]>;
 }
 
-export async function resolvePatientContext(
-  requestedPatientId?: string | null
-): Promise<{ error?: { status: number; message: string }; context?: PatientAdherenceContext }> {
-  let user: any = null;
-  let supabase: any = null;
+export async function resolvePatientContext(): Promise<{
+  error?: { status: number; message: string };
+  context?: PatientAdherenceContext;
+}> {
+  const auth = await requireSignedInPatient();
+  if (!auth.ok) return { error: { status: auth.status, message: auth.error } };
 
-  try {
-    supabase = await createClient();
-    const res = await supabase.auth.getUser();
-    user = res.data?.user;
-  } catch {
-    // Outside Next.js request scope or unconfigured Supabase
-    user = null;
-    supabase = null;
-  }
+  const patientId = auth.user.id;
+  const supabase = await createClient();
 
-  // If authenticated user exists, enforce that requestedPatientId (if any) matches auth.uid()
-  if (user?.id) {
-    if (requestedPatientId && requestedPatientId !== user.id) {
-      return { error: { status: 403, message: "Forbidden: Cannot access another patient's data" } };
+  const { data: dbMeds, error: medsError } = await supabase
+    .from("medications")
+    .select("*, documents(doc_date, doc_type, doctor, hospital)")
+    .eq("patient_id", patientId)
+    .eq("confirmed", true);
+  if (medsError) throw new Error(`Loading medications failed: ${medsError.message}`);
+
+  const medications: MedicationRecord[] = (dbMeds || []).map((m: any) => ({
+    ...m,
+    doc_date: m.documents?.doc_date,
+    doc_type: m.documents?.doc_type,
+    doctor: m.documents?.doctor,
+    hospital: m.documents?.hospital,
+  }));
+
+  const { data: dbLogs, error: logsError } = await supabase
+    .from("dose_logs")
+    .select("*")
+    .eq("patient_id", patientId);
+  if (logsError) throw new Error(`Loading dose logs failed: ${logsError.message}`);
+
+  const { data: dbOverrides, error: overridesError } = await supabase
+    .from("medication_schedule_overrides")
+    .select("*")
+    .eq("patient_id", patientId);
+  if (overridesError) throw new Error(`Loading schedule overrides failed: ${overridesError.message}`);
+
+  const scheduleOverrides: Record<string, string[]> = {};
+  for (const ov of dbOverrides || []) {
+    if (ov.times && Array.isArray(ov.times)) {
+      scheduleOverrides[ov.medication_id] = ov.times;
     }
-
-    const patientId = user.id;
-
-    // Fetch medications from Supabase
-    const { data: dbMeds } = await supabase
-      .from("medications")
-      .select("*, documents(doc_date, doc_type, doctor, hospital)")
-      .eq("patient_id", patientId)
-      .eq("confirmed", true);
-
-    const medications: MedicationRecord[] = (dbMeds || []).map((m: any) => ({
-      ...m,
-      doc_date: m.documents?.doc_date,
-      doc_type: m.documents?.doc_type,
-      doctor: m.documents?.doctor,
-      hospital: m.documents?.hospital,
-    }));
-
-    // Fetch dose logs
-    const { data: dbLogs } = await supabase
-      .from("dose_logs")
-      .select("*")
-      .eq("patient_id", patientId);
-
-    // Fetch overrides
-    const { data: dbOverrides } = await supabase
-      .from("medication_schedule_overrides")
-      .select("*")
-      .eq("patient_id", patientId);
-
-    const scheduleOverrides: Record<string, string[]> = {};
-    if (dbOverrides) {
-      for (const ov of dbOverrides) {
-        if (ov.times && Array.isArray(ov.times)) {
-          scheduleOverrides[ov.medication_id] = ov.times;
-        }
-      }
-    }
-
-    return {
-      context: {
-        patientId,
-        isDemo: patientId === "demo-patient-001",
-        medications,
-        doseLogs: (dbLogs as DoseLogRecord[]) || [],
-        scheduleOverrides,
-      },
-    };
   }
 
-  // Demo fallback
-  const demoPatientId = "demo-patient-001";
-  if (requestedPatientId && requestedPatientId !== demoPatientId) {
-    return {
-      context: {
-        patientId: requestedPatientId,
-        isDemo: false,
-        medications: [],
-        doseLogs: [],
-        scheduleOverrides: {},
-      },
-    };
-  }
-
-  const demoData = DEMO_PATIENTS_DATA[demoPatientId];
   return {
     context: {
-      patientId: demoPatientId,
-      isDemo: true,
-      medications: demoData?.medications || [],
-      doseLogs: getDemoDoseLogs(demoPatientId),
-      scheduleOverrides: getDemoOverrides(demoPatientId),
+      patientId,
+      isDemo: false,
+      medications,
+      doseLogs: (dbLogs as DoseLogRecord[]) || [],
+      scheduleOverrides,
     },
   };
 }
@@ -125,36 +87,10 @@ export async function persistDoseLog(
     status: "taken" | "skipped";
   }
 ): Promise<{ action: "logged" | "undone"; record?: DoseLogRecord }> {
-  const { patientId, isDemo } = context;
-
-  if (isDemo) {
-    const existing = DEMO_DOSE_LOGS.find(
-      (l) =>
-        l.patient_id === patientId &&
-        l.medication_id === params.medication_id &&
-        l.slot_key === params.slot_key &&
-        l.scheduled_date === params.scheduled_date
-    );
-
-    // Reversibility: if exact same status exists, undo it!
-    if (existing && existing.status === params.status) {
-      deleteDemoDoseLog(patientId, params.medication_id, params.slot_key, params.scheduled_date);
-      return { action: "undone" };
-    }
-
-    const saved = saveDemoDoseLog({
-      patient_id: patientId,
-      medication_id: params.medication_id,
-      slot_key: params.slot_key,
-      scheduled_date: params.scheduled_date,
-      status: params.status,
-    });
-    return { action: "logged", record: saved };
-  }
-
-  // Supabase persistence
+  const { patientId } = context;
   const supabase = await createClient();
-  const { data: existing } = await supabase
+
+  const { data: existing, error: readError } = await supabase
     .from("dose_logs")
     .select("*")
     .eq("patient_id", patientId)
@@ -162,23 +98,27 @@ export async function persistDoseLog(
     .eq("slot_key", params.slot_key)
     .eq("scheduled_date", params.scheduled_date)
     .maybeSingle();
+  if (readError) throw new Error(`Loading dose log failed: ${readError.message}`);
 
+  // Reversibility: logging the same status again removes the entry.
   if (existing && existing.status === params.status) {
-    await supabase.from("dose_logs").delete().eq("id", existing.id);
+    const { error } = await supabase.from("dose_logs").delete().eq("id", existing.id);
+    if (error) throw new Error(`Undoing dose log failed: ${error.message}`);
     return { action: "undone" };
   }
 
   if (existing) {
-    const { data: updated } = await supabase
+    const { data: updated, error } = await supabase
       .from("dose_logs")
       .update({ status: params.status, logged_at: new Date().toISOString() })
       .eq("id", existing.id)
       .select()
       .single();
-    return { action: "logged", record: updated };
+    if (error) throw new Error(`Updating dose log failed: ${error.message}`);
+    return { action: "logged", record: updated as DoseLogRecord };
   }
 
-  const { data: inserted } = await supabase
+  const { data: inserted, error } = await supabase
     .from("dose_logs")
     .insert({
       patient_id: patientId,
@@ -190,8 +130,8 @@ export async function persistDoseLog(
     })
     .select()
     .single();
-
-  return { action: "logged", record: inserted };
+  if (error) throw new Error(`Saving dose log failed: ${error.message}`);
+  return { action: "logged", record: inserted as DoseLogRecord };
 }
 
 export async function persistScheduleOverride(
@@ -199,20 +139,14 @@ export async function persistScheduleOverride(
   medicationId: string,
   times: string[]
 ): Promise<void> {
-  const { patientId, isDemo } = context;
-
-  if (isDemo) {
-    saveDemoOverride(patientId, medicationId, times);
-    return;
-  }
-
   const supabase = await createClient();
-  await supabase.from("medication_schedule_overrides").upsert(
+  const { error } = await supabase.from("medication_schedule_overrides").upsert(
     {
-      patient_id: patientId,
+      patient_id: context.patientId,
       medication_id: medicationId,
       times,
     },
     { onConflict: "medication_id" }
   );
+  if (error) throw new Error(`Saving schedule override failed: ${error.message}`);
 }

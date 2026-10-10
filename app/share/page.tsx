@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getLocalSession } from "@/lib/auth";
+import { useState } from "react";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 import { Shield, Key, Copy, Check, AlertTriangle, Clock, RefreshCw, XCircle, Share2, Lock } from "lucide-react";
 
 interface ShareItem {
@@ -16,7 +17,7 @@ interface ShareItem {
 }
 
 export default function SharePage() {
-  const [session, setSession] = useState<any>(null);
+  const { session, loading: sessionLoading } = useSession();
   const [scopeAll, setScopeAll] = useState(true);
   const [selectedScope, setSelectedScope] = useState<string[]>([
     "allergies",
@@ -33,11 +34,6 @@ export default function SharePage() {
   const [shares, setShares] = useState<ShareItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const s = getLocalSession();
-    setSession(s);
-  }, []);
 
   const toggleScopeCategory = (cat: string) => {
     if (scopeAll) setScopeAll(false);
@@ -65,7 +61,6 @@ export default function SharePage() {
           scope: finalScope,
           expiry: finalExpiry,
           max_uses: maxUses,
-          patient_id: session?.profile?.id || "demo-patient-001",
         }),
       });
 
@@ -100,7 +95,6 @@ export default function SharePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           share_id: shareId,
-          patient_id: session?.profile?.id || "demo-patient-001",
         }),
       });
       if (res.ok) {
@@ -122,6 +116,11 @@ export default function SharePage() {
     setTimeout(() => setCopied(false), 3000);
   };
 
+  if (!sessionLoading && !session) return <SignInRequired />;
+  if (session && session.user.role !== "patient") {
+    return <SignInRequired message="Share codes are created from a patient account." showLink={false} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
       {/* Header Banner */}
@@ -142,7 +141,7 @@ export default function SharePage() {
             <Lock className="w-5 h-5 text-blue-200" />
             <div className="text-xs">
               <span className="text-blue-200 block">Health ID</span>
-              <span className="font-mono font-semibold">{session?.profile?.health_id || "MED987654321"}</span>
+              <span className="font-mono font-semibold">{session?.profile?.health_id || "—"}</span>
             </div>
           </div>
         </div>

@@ -36,7 +36,8 @@ import {
   FileCode,
 } from "lucide-react";
 import { MedicalDocumentCategory } from "@/lib/types/database";
-import { getLocalSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 
 export interface DashboardDocument {
   id: string;
@@ -48,7 +49,6 @@ export interface DashboardDocument {
   size_bytes?: number;
   file_url?: string;
   storage_path?: string;
-  file_data_url?: string;
   category?: MedicalDocumentCategory | string;
   doc_type?: string;
   doc_date?: string;
@@ -117,7 +117,9 @@ const CATEGORY_MAP: Record<
 };
 
 export default function MedicalDocumentsPage() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const { session, loading: sessionLoading } = useSession();
+  // null while the session loads; false when there is no patient session.
+  const authenticated = sessionLoading ? null : session?.user.role === "patient";
   const [documents, setDocuments] = useState<DashboardDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -154,20 +156,21 @@ export default function MedicalDocumentsPage() {
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [uploadedFileType, setUploadedFileType] = useState("");
   const [uploadedFileSize, setUploadedFileSize] = useState<number>(0);
+  // The picked file itself. It is sent as multipart; the preview is a blob URL, not base64.
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Verify auth session
+  // Load the signed-in patient's documents once the session is known
   useEffect(() => {
-    const session = getLocalSession();
-    if (!session) {
-      setAuthenticated(false);
+    if (sessionLoading) return;
+    if (!session || session.user.role !== "patient") {
       setLoading(false);
-    } else {
-      setAuthenticated(true);
-      fetchDocuments(session.user?.id);
+      return;
     }
-  }, []);
+    fetchDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
 
   // Listen to keyboard ESC to close viewer modal
   useEffect(() => {
@@ -181,11 +184,10 @@ export default function MedicalDocumentsPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const fetchDocuments = async (patientId?: string) => {
+  const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const pid = patientId || "demo-patient-001";
-      const res = await fetch(`/api/documents?patient_id=${pid}`);
+      const res = await fetch("/api/documents");
       const data = await res.json();
       if (data.success && Array.isArray(data.documents)) {
         setDocuments(data.documents);
@@ -242,6 +244,7 @@ export default function MedicalDocumentsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadedFile(file);
     setUploadedFileName(file.name);
     setUploadedFileType(file.type);
     setUploadedFileSize(file.size);
@@ -273,15 +276,12 @@ export default function MedicalDocumentsPage() {
       }
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setUploadedFilePreview(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    setUploadedFilePreview(URL.createObjectURL(file));
   };
 
   // Prefill preset demo scans
   const handlePrefillDemo = (kind: "xray" | "mri" | "pdf") => {
+    setUploadedFile(null);
     if (kind === "xray") {
       setUploadTitle("Chest Radiograph (PA & Lateral View)");
       setUploadCategory("xray");
@@ -332,33 +332,38 @@ export default function MedicalDocumentsPage() {
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadTitle.trim() || !uploadedFilePreview) {
+    if (!uploadTitle.trim() || (!uploadedFile && !uploadedFilePreview)) {
       alert("Please provide a title and select a scan or document file.");
       return;
     }
 
     try {
       setIsUploading(true);
-      const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
-      const res = await fetch("/api/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patient_id: patientId,
-          title: uploadTitle.trim(),
-          category: uploadCategory,
-          file_name: uploadedFileName || "scan_record.jpg",
-          file_type: uploadedFileType || "image/jpeg",
-          file_size_bytes: uploadedFileSize || 1500000,
-          file_url: uploadedFilePreview,
-          doc_date: uploadDocDate,
-          doctor: uploadDoctor.trim(),
-          hospital: uploadHospital.trim(),
-          notes: uploadNotes.trim(),
-        }),
-      });
+      let res: Response;
+      if (uploadedFile) {
+        // Picked files go up as multipart. The server checks the file bytes.
+        const form = new FormData();
+        form.append("file", uploadedFile);
+        res = await fetch("/api/documents", { method: "POST", body: form });
+      } else {
+        // Prefilled samples are https links, which the server accepts in JSON.
+        res = await fetch("/api/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: uploadTitle.trim(),
+            category: uploadCategory,
+            file_name: uploadedFileName || "scan_record.jpg",
+            file_type: uploadedFileType || "image/jpeg",
+            file_size_bytes: uploadedFileSize || 1500000,
+            file_url: uploadedFilePreview,
+            doc_date: uploadDocDate,
+            doctor: uploadDoctor.trim(),
+            hospital: uploadHospital.trim(),
+            notes: uploadNotes.trim(),
+          }),
+        });
+      }
 
       const data = await res.json();
       if (data.success && data.document) {
@@ -373,6 +378,7 @@ export default function MedicalDocumentsPage() {
         setUploadHospital("");
         setUploadNotes("");
         setUploadedFilePreview(null);
+        setUploadedFile(null);
         setUploadedFileName("");
         setUploadedFileType("");
         setUploadedFileSize(0);
@@ -417,7 +423,7 @@ export default function MedicalDocumentsPage() {
   };
 
   const getDocUrl = (doc: DashboardDocument): string =>
-    doc.file_url || doc.file_data_url || doc.storage_path || "";
+    doc.file_url || "";
 
   const isDocPdf = (doc: DashboardDocument) => {
     const fType = (doc.file_type || "").toLowerCase();
@@ -489,6 +495,10 @@ export default function MedicalDocumentsPage() {
     (acc, cur) => acc + (cur.file_size_bytes || cur.size_bytes || 1200000),
     0
   );
+
+  if (authenticated === false && !sessionLoading && session && session.user.role !== "patient") {
+    return <SignInRequired message="Medical files are available to patient accounts." showLink={false} />;
+  }
 
   if (authenticated === false) {
     return (

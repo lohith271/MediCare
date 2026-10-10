@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getLocalSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 import { ShieldCheck, History, RefreshCw, Key, AlertTriangle, Stethoscope, Clock, ShieldAlert, FileText, UserCheck, Lock } from "lucide-react";
 
 interface AccessLogItem {
@@ -18,16 +19,12 @@ interface AccessLogItem {
 export default function AccessLogPage() {
   const [logs, setLogs] = useState<AccessLogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<any>(null);
+  const { session, loading: sessionLoading } = useSession();
 
   const fetchLogs = async () => {
     setLoading(true);
-    const s = getLocalSession();
-    setSession(s);
-    const patientId = s?.profile?.id || "demo-patient-001";
-
     try {
-      const res = await fetch(`/api/access-log?patient_id=${patientId}`);
+      const res = await fetch("/api/access-log");
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
@@ -40,8 +37,10 @@ export default function AccessLogPage() {
   };
 
   useEffect(() => {
+    if (sessionLoading || !session) return;
     fetchLogs();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionLoading, session?.user.id]);
 
   const renderActionBadge = (action: string) => {
     switch (action) {
@@ -63,6 +62,11 @@ export default function AccessLogPage() {
         return <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full font-semibold text-xs">{action}</span>;
     }
   };
+
+  if (!sessionLoading && !session) return <SignInRequired />;
+  if (session && session.user.role !== "patient") {
+    return <SignInRequired message="The access log is available to patient accounts." showLink={false} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">

@@ -23,8 +23,7 @@ import {
   patientRegisterSchema,
   doctorRegisterSchema,
 } from "@/lib/types/auth";
-import { saveLocalSession } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
+import { signInWithPassword } from "@/lib/auth";
 
 type RegisterRole = "patient" | "doctor";
 
@@ -104,33 +103,14 @@ export default function RegisterPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Registration failed.");
 
-      const supabase = createClient();
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-      if (loginError || !loginData.user) {
+      // Sign in with the same credentials. The session cookie is set by Supabase Auth.
+      try {
+        await signInWithPassword(email, password);
+      } catch {
         throw new Error("Your account was created, but automatic sign-in failed. Please sign in with your email and password.");
       }
 
-      saveLocalSession({
-        user: { id: loginData.user.id, email: loginData.user.email || email, role },
-        profile: {
-          id: loginData.user.id,
-          role,
-          full_name: fullName,
-          phone,
-          health_id: result.health_id,
-          ...(role === "patient" ? { dob, sex, blood_group: bloodGroup as "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-" } : {}),
-          emergency_enabled: role === "patient",
-          emergency_fields: role === "patient" ? ["blood_group", "allergies", "conditions", "medications"] : [],
-          emergency_access_hours: role === "patient" ? 24 : 0,
-        },
-        ...(role === "doctor" ? {
-          doctorProfile: { user_id: loginData.user.id, license_no: licenseNo, hospital, verified: false },
-        } : {}),
-      });
-
-      setSuccess(
-        "Account created and saved. You are now signed in."
-      );
+      setSuccess("Account created and saved. You are now signed in.");
       setTimeout(() => router.push(role === "doctor" ? "/emergency" : "/summary"), 700);
 
     } catch (err: any) {

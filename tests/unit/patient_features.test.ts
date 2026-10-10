@@ -18,8 +18,9 @@ import {
   deleteMedicalDocument,
 } from "@/lib/data/store";
 
+const dbReady = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 describe("Patient Features Verification", () => {
-  it("verifies profile, encounters, diagnoses, labs, and document storage", async () => {
+  it.skipIf(!dbReady)("verifies profile, encounters, diagnoses, labs, and document storage", async () => {
     // 1. Profile test
     const profile = await getPatientProfile("demo-patient-001");
     expect(profile.health_id).toBeDefined();
@@ -98,6 +99,6 @@ describe("Patient Features Verification", () => {
     expect(updatedDocs.some((d) => d.id === newScan.id)).toBe(true);
 
     // 10. Clean up test scan
-    await deleteMedicalDocument(newScan.id);
+    await deleteMedicalDocument("demo-patient-001", newScan.id);
   }, 20000);
 });

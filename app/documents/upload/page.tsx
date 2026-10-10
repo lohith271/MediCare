@@ -17,8 +17,11 @@ import {
   Archive,
 } from "lucide-react";
 import { MedicalDocumentCategory } from "@/lib/types/database";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 
 export default function DocumentUploadPage() {
+  const { session, loading: sessionLoading } = useSession();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -101,14 +104,10 @@ export default function DocumentUploadPage() {
       const file = e.target.files[0];
       validateAndSetFile(file);
 
-      // Also set preview for manual mode if active
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setManualFilePreview(ev.target?.result as string);
-        setManualFileName(file.name);
-        setManualFileType(file.type);
-      };
-      reader.readAsDataURL(file);
+      // Also set preview for manual mode if active (blob URL, no base64)
+      setManualFilePreview(URL.createObjectURL(file));
+      setManualFileName(file.name);
+      setManualFileType(file.type);
     }
   }
 
@@ -168,21 +167,30 @@ export default function DocumentUploadPage() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch("/api/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: uploadTitle || manualFileName || "Medical Document",
-          category: uploadCategory,
-          file_name: manualFileName || "document.jpg",
-          file_type: manualFileType || "image/jpeg",
-          file_url: manualFilePreview || "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=1200",
-          doc_date: uploadDocDate,
-          doctor: uploadDoctor,
-          hospital: uploadHospital,
-          notes: uploadNotes,
-        }),
-      });
+      let res: Response;
+      if (selectedFile) {
+        // Picked files go up as multipart. The server checks the file bytes.
+        const form = new FormData();
+        form.append("file", selectedFile);
+        res = await fetch("/api/documents", { method: "POST", body: form });
+      } else {
+        // No file picked: the sample https link, which the server accepts in JSON.
+        res = await fetch("/api/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: uploadTitle || manualFileName || "Medical Document",
+            category: uploadCategory,
+            file_name: manualFileName || "document.jpg",
+            file_type: manualFileType || "image/jpeg",
+            file_url: manualFilePreview || "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=1200",
+            doc_date: uploadDocDate,
+            doctor: uploadDoctor,
+            hospital: uploadHospital,
+            notes: uploadNotes,
+          }),
+        });
+      }
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -262,6 +270,11 @@ export default function DocumentUploadPage() {
       setErrorMsg((err as Error).message);
       setIsProcessing(false);
     }
+  }
+
+  if (!sessionLoading && !session) return <SignInRequired />;
+  if (session && session.user.role !== "patient") {
+    return <SignInRequired message="Uploads are available to patient accounts." showLink={false} />;
   }
 
   return (

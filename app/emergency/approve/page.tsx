@@ -13,6 +13,8 @@ function EmergencyApproveContent() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionDone, setActionDone] = useState<any | null>(null);
+  // Bearer token issued on accept. Kept in memory only; sent on any later patient-data read.
+  const [emergencyToken, setEmergencyToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -57,6 +59,7 @@ function EmergencyApproveContent() {
       }
 
       setActionDone(data);
+      setEmergencyToken(data.session_token ?? null);
     } catch (err: any) {
       setError(err.message);
     } finally {

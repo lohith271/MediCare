@@ -11,8 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const requestedPatientId = request.nextUrl.searchParams.get("patient_id");
-    const { error, context } = await resolvePatientContext(requestedPatientId);
+    const { error, context } = await resolvePatientContext();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: error.status });

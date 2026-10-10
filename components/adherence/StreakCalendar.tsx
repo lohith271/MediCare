@@ -16,12 +16,11 @@ import type { CalendarDayItem } from "@/app/api/adherence/calendar/route";
 import type { AdherenceStats, DayState } from "@/lib/adherence";
 
 interface StreakCalendarProps {
-  patientId?: string;
   today?: string;
   onRefreshToday?: () => void;
 }
 
-export function StreakCalendar({ patientId, today, onRefreshToday }: StreakCalendarProps) {
+export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState<string>("2026-10");
   const [calendarDays, setCalendarDays] = useState<CalendarDayItem[]>([]);
   const [stats, setStats] = useState<AdherenceStats | null>(null);
@@ -33,7 +32,6 @@ export function StreakCalendar({ patientId, today, onRefreshToday }: StreakCalen
     async (month: string) => {
       try {
         const params = new URLSearchParams();
-        if (patientId) params.set("patient_id", patientId);
         params.set("month", month);
         if (today) params.set("today", today);
         const url = `/api/adherence/calendar?${params.toString()}`;
@@ -46,13 +44,12 @@ export function StreakCalendar({ patientId, today, onRefreshToday }: StreakCalen
         console.error("Failed to fetch calendar", e);
       }
     },
-    [patientId, today]
+    [today]
   );
 
   const fetchStats = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (patientId) params.set("patient_id", patientId);
       if (today) params.set("today", today);
       const query = params.toString();
       const url = `/api/adherence/stats${query ? `?${query}` : ""}`;
@@ -64,7 +61,7 @@ export function StreakCalendar({ patientId, today, onRefreshToday }: StreakCalen
     } catch (e) {
       console.error("Failed to fetch stats", e);
     }
-  }, [patientId, today]);
+  }, [today]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
@@ -110,7 +107,6 @@ export function StreakCalendar({ patientId, today, onRefreshToday }: StreakCalen
 
     try {
       const params = new URLSearchParams();
-      if (patientId) params.set("patient_id", patientId);
       if (today) params.set("today", today);
       const query = params.toString();
       const res = await fetch(`/api/adherence/log${query ? `?${query}` : ""}`, {
@@ -131,7 +127,6 @@ export function StreakCalendar({ patientId, today, onRefreshToday }: StreakCalen
         // Update selectedDay if open
         if (selectedDay && selectedDay.date === scheduledDate) {
           const calParams = new URLSearchParams();
-          if (patientId) calParams.set("patient_id", patientId);
           calParams.set("month", currentMonth);
           if (today) calParams.set("today", today);
           const updatedCalendarRes = await fetch(

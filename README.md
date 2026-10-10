@@ -17,12 +17,12 @@
 - **Architecture**: Next.js 15 (App Router), TypeScript, Tailwind CSS, Supabase SSR Auth, Zod schema validation.
 
 ## Environment Variables
-See `.env.example`:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`
-- `SESSION_SECRET`
+See `.env.example`. Required: the Supabase URL, publishable key, and secret key; `SESSION_SECRET`; and the LLM key for document extraction.
+
+## Database Setup (Supabase)
+1. In the Supabase SQL Editor, run each file in `supabase/migrations/` in filename order.
+2. Run `npm run seed:demo` to create the demo accounts and demo patient records.
+3. Demo logins: `patient@medicare.demo` and `doctor@medicare.demo`, password `Password123!`.
 
 ## Getting Started
 ```bash

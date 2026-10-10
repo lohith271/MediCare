@@ -6,11 +6,19 @@ import {
   addTrustedContact,
   deleteTrustedContact,
 } from "@/lib/data/store";
+import type { Profile } from "@/lib/types/database";
+import {
+  errorResponse,
+  requireSignedInPatient,
+  resolvePatientAccess,
+} from "@/lib/access/patient-access";
 
-export async function GET(request: NextRequest) {
+/** Profile and trusted contacts. Readable by the patient or an "all" share code. */
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const patientId = searchParams.get("patient_id") || "demo-patient-001";
+    const access = await resolvePatientAccess(req, "all");
+    if (!access.ok) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
+    const patientId = access.patientId;
 
     const [profile, trustedContacts] = await Promise.all([
       getPatientProfile(patientId),
@@ -23,19 +31,20 @@ export async function GET(request: NextRequest) {
       trusted_contacts: trustedContacts,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to load profile" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to load profile");
   }
 }
 
-export async function PATCH(request: NextRequest) {
+/** Owner-only from here on. The patient id is always the signed-in patient. */
+export async function PATCH(req: NextRequest) {
   try {
-    const body = await request.json();
-    const patientId = body.patient_id || "demo-patient-001";
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
 
-    const updated = await updatePatientProfile(patientId, body);
+    const body = await req.json();
+    const { patient_id: _ignored, action: _action, ...updates } = body;
+
+    const updated = await updatePatientProfile(auth.user.id, updates as Partial<Profile>);
 
     return NextResponse.json({
       success: true,
@@ -43,17 +52,17 @@ export async function PATCH(request: NextRequest) {
       message: "Profile updated successfully",
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to update profile" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to update profile");
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const patientId = body.patient_id || "demo-patient-001";
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+    const patientId = auth.user.id;
+
+    const body = await req.json();
 
     if (body.action === "add_contact") {
       const { name, email, relation } = body;
@@ -74,16 +83,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: false, error: "Unknown action" }, { status: 400 });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to process request" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to process request");
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+
+    const { searchParams } = new URL(req.url);
     const contactId = searchParams.get("contact_id");
 
     if (!contactId) {
@@ -93,15 +102,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await deleteTrustedContact(contactId);
+    await deleteTrustedContact(auth.user.id, contactId);
     return NextResponse.json({
       success: true,
       message: "Trusted contact removed successfully",
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to delete contact" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to delete contact");
   }
 }

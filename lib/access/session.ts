@@ -1,9 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "medicare-signed-session-secret-key-hackathon-2026"
-);
-
 export interface ShareSessionPayload {
   type: "share";
   share_id: string;
@@ -18,6 +14,20 @@ export interface EmergencySessionPayload {
   doctor_id: string;
   patient_id: string;
   [key: string]: unknown;
+}
+
+/**
+ * Signing key for share and emergency tokens. There is deliberately no fallback:
+ * a public default secret would let anyone forge doctor access.
+ */
+function getSessionSecret(): Uint8Array {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error(
+      "SESSION_SECRET is not set. Add a long random value to the server environment before using share or emergency access."
+    );
+  }
+  return new TextEncoder().encode(secret);
 }
 
 /**
@@ -36,17 +46,18 @@ export async function createShareSessionToken(
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
-    .sign(JWT_SECRET);
+    .sign(getSessionSecret());
 }
 
 /**
- * Verifies a Share JWT session token.
+ * Verifies a Share JWT session token. Returns null for invalid or expired tokens.
  */
 export async function verifyShareSessionToken(
   token: string
 ): Promise<ShareSessionPayload | null> {
+  const secret = getSessionSecret();
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
     if (payload.type !== "share") return null;
     return payload as unknown as ShareSessionPayload;
   } catch (_err) {
@@ -70,17 +81,18 @@ export async function createEmergencySessionToken(
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
-    .sign(JWT_SECRET);
+    .sign(getSessionSecret());
 }
 
 /**
- * Verifies an Emergency JWT session token.
+ * Verifies an Emergency JWT session token. Returns null for invalid or expired tokens.
  */
 export async function verifyEmergencySessionToken(
   token: string
 ): Promise<EmergencySessionPayload | null> {
+  const secret = getSessionSecret();
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
     if (payload.type !== "emergency") return null;
     return payload as unknown as EmergencySessionPayload;
   } catch (_err) {

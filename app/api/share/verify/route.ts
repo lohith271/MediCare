@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/ratelimit";
 import { createShareSessionToken } from "@/lib/access/session";
 import { logAccess } from "@/lib/access/log";
+import { errorResponse } from "@/lib/access/patient-access";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
     const body = await req.json().catch(() => ({}));
-    const rawCode = (body.code || "").trim().toUpperCase();
+    const rawCode = String(body.code || "").trim().toUpperCase();
 
     if (!rawCode || rawCode.length !== 8) {
       return NextResponse.json(
@@ -18,17 +19,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Hash the code
+    // Hash the code. The shares table is not readable by anonymous callers under RLS,
+    // so the lookup uses the service-role client. The code hash is the credential.
     const code_hash = crypto.createHash("sha256").update(rawCode).digest("hex");
+    const admin = createAdminClient();
 
-    const supabase = await createClient();
-    const { data: share, error } = await supabase
+    const { data: share, error } = await admin
       .from("shares")
       .select("*")
       .eq("code_hash", code_hash)
-      .single();
+      .maybeSingle();
+    if (error) throw new Error(`Loading share failed: ${error.message}`);
 
-    if (error || !share) {
+    if (!share) {
       // Check rate limit on failure: 5 failures per 15 mins (900 seconds)
       const rateCheck = await checkRateLimit(`share_verify:${ip}`, 5, 900);
       if (!rateCheck.success) {
@@ -45,7 +48,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check revoked
     if (share.revoked_at) {
       return NextResponse.json(
         { error: "Share code has been revoked by the patient" },
@@ -53,16 +55,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check expiry
-    const now = new Date();
-    if (new Date(share.expires_at) <= now) {
+    if (new Date(share.expires_at) <= new Date()) {
       return NextResponse.json(
         { error: "Share code has expired" },
         { status: 400 }
       );
     }
 
-    // Check max uses
     if (share.use_count >= share.max_uses) {
       return NextResponse.json(
         { error: "Maximum use limit reached for this share code" },
@@ -70,27 +69,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // Increment use_count
-    await supabase
+    const { error: useError } = await admin
       .from("shares")
       .update({ use_count: share.use_count + 1 })
       .eq("id", share.id);
+    if (useError) throw new Error(`Recording share use failed: ${useError.message}`);
 
-    // Create signed session token
     const token = await createShareSessionToken({
       share_id: share.id,
       patient_id: share.patient_id,
       scope: share.scope,
     });
 
-    // Fetch patient profile
-    const { data: profile } = await supabase
+    const { data: profile } = await admin
       .from("profiles")
       .select("id, full_name, dob, sex, blood_group, health_id")
       .eq("id", share.patient_id)
-      .single();
+      .maybeSingle();
 
-    // Log access
     await logAccess({
       patient_id: share.patient_id,
       actor_type: "share_code",
@@ -114,13 +110,10 @@ export async function POST(req: Request) {
       profile: profile || {
         id: share.patient_id,
         full_name: "Patient Record",
-        health_id: "MED123456789",
+        health_id: null,
       },
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "Failed to verify share code" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return errorResponse(err, "Failed to verify share code");
   }
 }

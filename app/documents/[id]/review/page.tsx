@@ -21,18 +21,24 @@ import {
   Eye,
   Info,
 } from "lucide-react";
-import { StoredDocument } from "@/lib/documents/store";
-import { MedicalDataExtract } from "@/lib/llm/adapter";
+import type { StoredDocument } from "@/lib/documents/store";
+import type { MedicalDataExtract } from "@/lib/llm/adapter";
+import { useSession } from "@/lib/auth";
+import SignInRequired from "@/components/SignInRequired";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+/** The API returns the stored document with a fresh, short-lived `file_url`. */
+type ReviewDocument = StoredDocument & { file_url?: string | null };
+
 export default function DocumentReviewPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
 
-  const [document, setDocument] = useState<StoredDocument | null>(null);
+  const { session, loading: sessionLoading } = useSession();
+  const [document, setDocument] = useState<ReviewDocument | null>(null);
   const [formData, setFormData] = useState<MedicalDataExtract | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,8 +70,10 @@ export default function DocumentReviewPage({ params }: PageProps) {
         setLoading(false);
       }
     }
+    if (sessionLoading || !session || session.user.role !== "patient") return;
     fetchDoc();
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, sessionLoading, session?.user.id]);
 
   // Client-side PDF rendering using pdfjs-dist
   useEffect(() => {
@@ -79,18 +87,15 @@ export default function DocumentReviewPage({ params }: PageProps) {
         // Set worker source
         pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-        let pdfData: Uint8Array;
-        if (document?.file_data_url) {
-          const base64 = document.file_data_url.split(",")[1];
-          const binaryStr = atob(base64);
-          pdfData = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) {
-            pdfData[i] = binaryStr.charCodeAt(i);
-          }
-        } else {
-          // If no base64, render simple fallback notice
+        const fileUrl = document?.file_url;
+        if (!fileUrl) {
+          // No file link: show the fallback notice instead of a canvas
           return;
         }
+        // Fetch the signed file link and hand the bytes to PDF.js.
+        const fileRes = await fetch(fileUrl);
+        if (!fileRes.ok) throw new Error(`PDF download failed (${fileRes.status})`);
+        const pdfData = new Uint8Array(await fileRes.arrayBuffer());
 
         const loadingTask = pdfjs.getDocument({ data: pdfData });
         const pdf = await loadingTask.promise;
@@ -221,6 +226,11 @@ export default function DocumentReviewPage({ params }: PageProps) {
       confidence: 1.0,
     };
     setFormData({ ...formData, lab_results: [...formData.lab_results, newLab] });
+  }
+
+  if (!sessionLoading && !session) return <SignInRequired />;
+  if (session && session.user.role !== "patient") {
+    return <SignInRequired message="Document review is available to patient accounts." showLink={false} />;
   }
 
   if (loading) {
@@ -405,9 +415,9 @@ export default function DocumentReviewPage({ params }: PageProps) {
                     <p className="text-xs text-slate-400 mt-1 mb-4">
                       {document.file_name} (Page 1)
                     </p>
-                    {document.file_data_url && (
+                    {document.file_url && (
                       <a
-                        href={document.file_data_url}
+                        href={document.file_url}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 font-medium"
@@ -426,9 +436,9 @@ export default function DocumentReviewPage({ params }: PageProps) {
                   transform: `rotate(${rotation}deg) scale(${zoomLevel / 100})`,
                 }}
               >
-                {document.file_data_url ? (
+                {document.file_url ? (
                   <img
-                    src={document.file_data_url}
+                    src={document.file_url}
                     alt={document.file_name}
                     className="rounded shadow-2xl border border-slate-800 max-h-[70vh] object-contain"
                   />

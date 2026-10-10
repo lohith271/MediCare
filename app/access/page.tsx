@@ -22,6 +22,8 @@ export default function DoctorAccessPortal() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessData, setAccessData] = useState<ScopedRecord | null>(null);
+  // Bearer token from a successful verify. Kept in memory only; sent on any later patient-data read.
+  const [shareToken, setShareToken] = useState<string | null>(null);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +50,7 @@ export default function DoctorAccessPortal() {
       }
 
       setAccessData(data);
+      setShareToken(data.token ?? null);
     } catch (err: any) {
       setError(err.message);
     } finally {

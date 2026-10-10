@@ -1,86 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { buildSummary } from "@/lib/summary";
-import { DEMO_PATIENTS_DATA } from "@/seed/patients";
 import type { MedicationRecord, DiagnosisRecord, AllergyRecord } from "@/lib/types/database";
+import {
+  errorResponse,
+  requireSignedInPatient,
+  resolvePatientAccess,
+} from "@/lib/access/patient-access";
 
 export const dynamic = "force-dynamic";
 
+/** Clinical summary. Readable by the patient or a share code with "all" scope. */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const access = await resolvePatientAccess(request, "all");
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+    const patientId = access.patientId;
 
-    const requestedPatientId = request.nextUrl.searchParams.get("patient_id");
-    const patientId = user?.id || requestedPatientId || "demo-patient-001";
-    let meds: MedicationRecord[] = [];
-    let diagnoses: DiagnosisRecord[] = [];
-    let allergies: AllergyRecord[] = [];
-
-    // Attempt to fetch from Supabase if configured
-    if (user?.id) {
-      const [medsRes, diagsRes, allergiesRes] = await Promise.all([
-        supabase
-          .from("medications")
-          .select("*, documents(doc_date, doc_type, doctor, hospital)")
-          .eq("patient_id", patientId)
-          .eq("confirmed", true),
-        supabase
-          .from("diagnoses")
-          .select("*, documents(doc_date, doc_type, doctor, hospital)")
-          .eq("patient_id", patientId)
-          .eq("confirmed", true),
-        supabase
-          .from("allergies")
-          .select("*, documents(doc_date, doc_type, doctor, hospital)")
-          .eq("patient_id", patientId)
-          .eq("confirmed", true),
-      ]);
-
-      if (medsRes.data && medsRes.data.length > 0) {
-        meds = medsRes.data.map((m: any) => ({
-          ...m,
-          doc_date: m.documents?.doc_date,
-          doc_type: m.documents?.doc_type,
-          doctor: m.documents?.doctor,
-          hospital: m.documents?.hospital,
-        }));
-      }
-
-      if (diagsRes.data && diagsRes.data.length > 0) {
-        diagnoses = diagsRes.data.map((d: any) => ({
-          ...d,
-          doc_date: d.documents?.doc_date,
-          doc_type: d.documents?.doc_type,
-          doctor: d.documents?.doctor,
-          hospital: d.documents?.hospital,
-        }));
-      }
-
-      if (allergiesRes.data && allergiesRes.data.length > 0) {
-        allergies = allergiesRes.data.map((a: any) => ({
-          ...a,
-          doc_date: a.documents?.doc_date,
-          doc_type: a.documents?.doc_type,
-          doctor: a.documents?.doctor,
-          hospital: a.documents?.hospital,
-        }));
-      }
+    const admin = createAdminClient();
+    const [medsRes, diagsRes, allergiesRes, labsRes] = await Promise.all([
+      admin
+        .from("medications")
+        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .eq("patient_id", patientId)
+        .eq("confirmed", true),
+      admin
+        .from("diagnoses")
+        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .eq("patient_id", patientId)
+        .eq("confirmed", true),
+      admin
+        .from("allergies")
+        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .eq("patient_id", patientId)
+        .eq("confirmed", true),
+      admin
+        .from("lab_results")
+        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .eq("patient_id", patientId)
+        .eq("confirmed", true),
+    ]);
+    for (const res of [medsRes, diagsRes, allergiesRes, labsRes]) {
+      if (res.error) throw new Error(`Loading summary records failed: ${res.error.message}`);
     }
 
-    // Fallback to simulated demo patient ONLY if patientId is demo-patient-001
-    if (meds.length === 0 && diagnoses.length === 0 && allergies.length === 0) {
-      if (patientId === "demo-patient-001") {
-        const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
-        if (demoData) {
-          meds = demoData.medications;
-          diagnoses = demoData.diagnoses;
-          allergies = demoData.allergies;
-        }
-      }
-    }
+    const flatten = (rows: any[] | null) =>
+      (rows ?? []).map((r: any) => ({
+        ...r,
+        doc_date: r.documents?.doc_date,
+        doc_type: r.documents?.doc_type,
+        doctor: r.documents?.doctor,
+        hospital: r.documents?.hospital,
+      }));
+
+    const meds = flatten(medsRes.data) as MedicationRecord[];
+    const diagnoses = flatten(diagsRes.data) as DiagnosisRecord[];
+    const allergies = flatten(allergiesRes.data) as AllergyRecord[];
+    const labs = (labsRes.data ?? []) as any[];
 
     const todayParam = request.nextUrl.searchParams.get("today");
     const summary = buildSummary(meds, diagnoses, allergies, {
@@ -88,91 +64,59 @@ export async function GET(request: NextRequest) {
       includeSources: true,
     });
 
-    let labs: any[] = [];
-    if (user?.id) {
-      const labsRes = await supabase
-        .from("lab_results")
-        .select("*, documents(doc_date, doc_type, doctor, hospital)")
-        .eq("patient_id", patientId)
-        .eq("confirmed", true);
-      if (labsRes.data && labsRes.data.length > 0) {
-        labs = labsRes.data;
-      }
-    }
-    if (labs.length === 0 && patientId === "demo-patient-001") {
-      const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
-      labs = demoData?.lab_results || [];
-    }
-
     return NextResponse.json({ summary, labs });
   } catch (error: any) {
     console.error("Error generating clinical summary:", error);
-    // Return empty summary on error rather than demo data for arbitrary users
-    return NextResponse.json({
-      summary: buildSummary([], [], []),
-      labs: [],
-    });
+    return errorResponse(error, "Failed to generate clinical summary");
   }
 }
 
+/** Patient-reported allergy. Owner-only. */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const patientId = auth.user.id;
+
     const body = await request.json();
     const { substance, reaction } = body;
 
-    if (!substance || !substance.trim()) {
+    if (!substance || !String(substance).trim()) {
       return NextResponse.json({ error: "Substance name is required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const todayStr = new Date().toISOString().split("T")[0];
-    const newAllergy: AllergyRecord = {
-      id: `all-patient-${Date.now()}`,
-      patient_id: user?.id || "demo-patient-001",
-      source_type: "patient",
-      document_id: null,
-      page_number: null,
-      evidence_text: `Added by you on ${todayStr}`,
-      substance: substance.trim(),
-      reaction: (reaction || "").trim() || "Adverse reaction reported",
-      created_on: todayStr,
-      confidence: 1.0,
-      confirmed: true,
-    };
-
-    if (user?.id) {
-      await supabase.from("allergies").insert([
-        {
-          patient_id: user.id,
-          source_type: "patient",
-          substance: newAllergy.substance,
-          reaction: newAllergy.reaction,
-          evidence_text: newAllergy.evidence_text,
-          confidence: 1.0,
-          confirmed: true,
-        },
-      ]);
-    } else {
-      // In-memory demo store
-      const demoPatient = DEMO_PATIENTS_DATA["demo-patient-001"];
-      demoPatient.allergies.unshift(newAllergy);
+    const evidenceText = `Added by you on ${todayStr}`;
+    const { data: allergy, error } = await createAdminClient()
+      .from("allergies")
+      .insert({
+        patient_id: patientId,
+        source_type: "patient",
+        substance: String(substance).trim(),
+        reaction: (reaction || "").trim() || "Adverse reaction reported",
+        evidence_text: evidenceText,
+        confidence: 1.0,
+        confirmed: true,
+      })
+      .select("*")
+      .single();
+    if (error || !allergy) {
+      throw new Error(`Saving allergy failed: ${error?.message ?? "unknown error"}`);
     }
 
-    return NextResponse.json({ success: true, allergy: newAllergy });
+    return NextResponse.json({ success: true, allergy });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Failed to record bad reaction" },
-      { status: 500 }
-    );
+    return errorResponse(error, "Failed to record bad reaction");
   }
 }
 
+/** Marks a medication as stopped or active. Owner-only. */
 export async function PATCH(request: NextRequest) {
   try {
+    const auth = await requireSignedInPatient();
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const patientId = auth.user.id;
+
     const body = await request.json();
     const { medication_id, stopped } = body;
 
@@ -180,39 +124,29 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Missing medication_id" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const stoppedOn = stopped ? new Date().toISOString().split("T")[0] : null;
 
-    if (user?.id) {
-      await supabase
-        .from("medications")
-        .update({
-          patient_marked_stopped: stopped,
-          stopped_on: stoppedOn,
-        })
-        .eq("id", medication_id)
-        .eq("patient_id", user.id);
-    } else {
-      // In-memory update for demo session
-      const demoPatient = DEMO_PATIENTS_DATA["demo-patient-001"];
-      const targetMed = demoPatient.medications.find((m) => m.id === medication_id);
-      if (targetMed) {
-        targetMed.patient_marked_stopped = stopped;
-        targetMed.stopped_on = stoppedOn;
-      }
+    const { data, error } = await createAdminClient()
+      .from("medications")
+      .update({
+        patient_marked_stopped: Boolean(stopped),
+        stopped_on: stoppedOn,
+      })
+      .eq("id", medication_id)
+      .eq("patient_id", patientId)
+      .select("id");
+    if (error) throw new Error(`Updating medication failed: ${error.message}`);
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: "Medication not found" }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
       medication_id,
-      patient_marked_stopped: stopped,
+      patient_marked_stopped: Boolean(stopped),
       stopped_on: stoppedOn,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to update medication status" }, { status: 500 });
+    return errorResponse(error, "Failed to update medication status");
   }
 }
