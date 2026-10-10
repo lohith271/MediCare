@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS public.appointments (
 );
 CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON public.appointments(patient_id);
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Patients manage own appointments" ON public.appointments;
 CREATE POLICY "Patients manage own appointments"
   ON public.appointments FOR ALL
   USING (auth.uid() = patient_id)
@@ -93,16 +94,19 @@ ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.medical_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.allergies ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Patients manage own documents" ON public.documents;
 CREATE POLICY "Patients manage own documents"
   ON public.documents FOR ALL
   USING (auth.uid() = patient_id)
   WITH CHECK (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Patients manage own medical_documents" ON public.medical_documents;
 CREATE POLICY "Patients manage own medical_documents"
   ON public.medical_documents FOR ALL
   USING (auth.uid() = patient_id)
   WITH CHECK (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Patients manage own allergies" ON public.allergies;
 CREATE POLICY "Patients manage own allergies"
   ON public.allergies FOR ALL
   USING (auth.uid() = patient_id)

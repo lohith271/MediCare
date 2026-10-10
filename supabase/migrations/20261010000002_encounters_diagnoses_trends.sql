@@ -112,26 +112,31 @@ ALTER TABLE public.encounters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lab_results ENABLE ROW LEVEL SECURITY;
 
 -- Owner-only policies
+DROP POLICY IF EXISTS "Patients manage own trusted_contacts" ON public.trusted_contacts;
 CREATE POLICY "Patients manage own trusted_contacts"
   ON public.trusted_contacts FOR ALL
   USING (auth.uid() = patient_id)
   WITH CHECK (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Patients manage own diagnoses" ON public.diagnoses;
 CREATE POLICY "Patients manage own diagnoses"
   ON public.diagnoses FOR ALL
   USING (auth.uid() = patient_id)
   WITH CHECK (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Patients manage own medications" ON public.medications;
 CREATE POLICY "Patients manage own medications"
   ON public.medications FOR ALL
   USING (auth.uid() = patient_id)
   WITH CHECK (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Patients manage own encounters" ON public.encounters;
 CREATE POLICY "Patients manage own encounters"
   ON public.encounters FOR ALL
   USING (auth.uid() = patient_id)
   WITH CHECK (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Patients manage own lab_results" ON public.lab_results;
 CREATE POLICY "Patients manage own lab_results"
   ON public.lab_results FOR ALL
   USING (auth.uid() = patient_id)

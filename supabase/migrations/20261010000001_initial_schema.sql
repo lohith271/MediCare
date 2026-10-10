@@ -87,15 +87,18 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.doctor_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Patients can view and update their own profile
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
 -- Doctors can read their own doctor profile
+DROP POLICY IF EXISTS "Doctors can read own doctor profile" ON public.doctor_profiles;
 CREATE POLICY "Doctors can read own doctor profile"
   ON public.doctor_profiles FOR SELECT
   USING (auth.uid() = user_id);

@@ -32,12 +32,14 @@ CREATE INDEX IF NOT EXISTS idx_sched_overrides_patient_id ON public.medication_s
 ALTER TABLE public.dose_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.medication_schedule_overrides ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Patients manage their own dose logs" ON public.dose_logs;
 CREATE POLICY "Patients manage their own dose logs"
   ON public.dose_logs
   FOR ALL
   USING (auth.uid() = patient_id)
   WITH CHECK (auth.uid() = patient_id);
 
+DROP POLICY IF EXISTS "Patients manage their own schedule overrides" ON public.medication_schedule_overrides;
 CREATE POLICY "Patients manage their own schedule overrides"
   ON public.medication_schedule_overrides
   FOR ALL

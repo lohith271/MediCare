@@ -96,23 +96,31 @@ ALTER TABLE public.inbox ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- Trusted Contacts: Owner RLS
+DROP POLICY IF EXISTS "Patients can view own trusted contacts" ON public.trusted_contacts;
 CREATE POLICY "Patients can view own trusted contacts"
   ON public.trusted_contacts FOR SELECT USING (auth.uid() = patient_id);
+DROP POLICY IF EXISTS "Patients can insert own trusted contacts" ON public.trusted_contacts;
 CREATE POLICY "Patients can insert own trusted contacts"
   ON public.trusted_contacts FOR INSERT WITH CHECK (auth.uid() = patient_id);
+DROP POLICY IF EXISTS "Patients can update own trusted contacts" ON public.trusted_contacts;
 CREATE POLICY "Patients can update own trusted contacts"
   ON public.trusted_contacts FOR UPDATE USING (auth.uid() = patient_id);
+DROP POLICY IF EXISTS "Patients can delete own trusted contacts" ON public.trusted_contacts;
 CREATE POLICY "Patients can delete own trusted contacts"
   ON public.trusted_contacts FOR DELETE USING (auth.uid() = patient_id);
 
 -- Shares: Patient RLS
+DROP POLICY IF EXISTS "Patients can view own shares" ON public.shares;
 CREATE POLICY "Patients can view own shares"
   ON public.shares FOR SELECT USING (auth.uid() = patient_id);
+DROP POLICY IF EXISTS "Patients can insert own shares" ON public.shares;
 CREATE POLICY "Patients can insert own shares"
   ON public.shares FOR INSERT WITH CHECK (auth.uid() = patient_id);
+DROP POLICY IF EXISTS "Patients can update own shares" ON public.shares;
 CREATE POLICY "Patients can update own shares"
   ON public.shares FOR UPDATE USING (auth.uid() = patient_id);
 
 -- Access Log: Patient RLS
+DROP POLICY IF EXISTS "Patients can view own access log" ON public.access_log;
 CREATE POLICY "Patients can view own access log"
   ON public.access_log FOR SELECT USING (auth.uid() = patient_id);
