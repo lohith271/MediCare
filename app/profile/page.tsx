@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import QRCode from "qrcode";
 import {
   User,
@@ -38,6 +39,7 @@ const EMERGENCY_FIELD_OPTIONS = [
 ];
 
 export default function ProfilePage() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [trustedContacts, setTrustedContacts] = useState<TrustedContact[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
@@ -67,12 +69,11 @@ export default function ProfilePage() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactRelation, setContactRelation] = useState("Spouse");
 
-  const loadData = async () => {
+  const loadData = async (overrideId?: string) => {
     try {
       setLoading(true);
       const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
+      const patientId = overrideId || session?.user?.id || "demo-patient-001";
       const res = await fetch(`/api/profile?patient_id=${patientId}`);
       const data = await res.json();
 
@@ -109,7 +110,14 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    loadData();
+    const session = getLocalSession();
+    if (!session) {
+      setAuthenticated(false);
+      setLoading(false);
+      return;
+    }
+    setAuthenticated(true);
+    loadData(session.user.id);
   }, []);
 
   const handleCopyHealthId = () => {
@@ -213,6 +221,28 @@ export default function ProfilePage() {
       prev.includes(fieldId) ? prev.filter((f) => f !== fieldId) : [...prev, fieldId]
     );
   };
+
+  if (authenticated === false) {
+    return (
+      <div className="max-w-md mx-auto py-24 px-4 text-center space-y-5">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-white">Sign In to View Health Profile</h2>
+          <p className="text-xs text-emerald-300/70">
+            Universal Health ID, QR pass, and emergency settings are available after signing in to your patient account.
+          </p>
+        </div>
+        <Link
+          href="/login"
+          className="inline-block px-6 py-2.5 rounded-full bg-emerald-400 text-[#071410] font-bold text-xs hover:bg-emerald-300 transition-all shadow-md shadow-emerald-400/20"
+        >
+          Sign In as Patient
+        </Link>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -23,9 +23,11 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setSession(getLocalSession());
   }, [pathname]);
 
@@ -35,7 +37,11 @@ export default function Navbar() {
     router.push("/login");
   };
 
-  const navLinks = [
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+  // Patient portal links only show AFTER login
+  const isLoggedIn = mounted && session !== null && !isAuthPage;
+
+  const patientNavLinks = [
     { href: "/summary", label: "Overview", icon: LayoutDashboard },
     { href: "/consultations", label: "Consultations & Follow-ups", icon: Stethoscope },
     { href: "/trends", label: "Lab Trends", icon: TrendingUp },
@@ -44,11 +50,19 @@ export default function Navbar() {
     { href: "/emergency", label: "Emergency ER", icon: ShieldAlert },
   ];
 
+  const doctorNavLinks = [
+    { href: "/emergency", label: "Emergency ER", icon: ShieldAlert },
+    { href: "/access", label: "Access by Code", icon: QrCode },
+  ];
+
+  const currentNavLinks =
+    session?.user.role === "doctor" ? doctorNavLinks : patientNavLinks;
+
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-[#071410]/90 border-b border-emerald-900/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2.5 group">
+        <Link href="/" className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-dark-bg shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
             <HeartPulse className="w-5 h-5 text-[#071410] stroke-[2.5]" />
           </div>
@@ -61,35 +75,37 @@ export default function Navbar() {
             </span>
             <span className="text-[10px] text-emerald-400/70 -mt-0.5">Every doctor. One record.</span>
           </div>
-        </a>
+        </Link>
 
-        {/* Desktop Nav Links */}
-        <nav className="hidden lg:flex items-center gap-1">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            const Icon = link.icon;
-            return (
-              <a
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  isActive
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm"
-                    : "text-emerald-200/75 hover:text-white hover:bg-emerald-500/10"
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {link.label}
-              </a>
-            );
-          })}
-        </nav>
+        {/* Desktop Nav Links - ONLY SHOWN AFTER LOGIN */}
+        {isLoggedIn && (
+          <nav className="hidden lg:flex items-center gap-1">
+            {currentNavLinks.map((link) => {
+              const isActive = pathname === link.href;
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    isActive
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm"
+                      : "text-emerald-200/75 hover:text-white hover:bg-emerald-500/10"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
 
-        {/* User / Session Action Buttons */}
+        {/* Right side: User Session if logged in, or Login/Register if before login */}
         <div className="hidden sm:flex items-center gap-3">
-          {session ? (
+          {isLoggedIn ? (
             <div className="flex items-center gap-2.5">
-              <a
+              <Link
                 href="/profile"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#092219] border border-emerald-500/30 text-xs text-emerald-200 hover:border-emerald-400 transition-colors"
               >
@@ -102,7 +118,7 @@ export default function Navbar() {
                 <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300">
                   {session.user.role}
                 </span>
-              </a>
+              </Link>
 
               <button
                 type="button"
@@ -115,23 +131,27 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <a
+              <Link
                 href="/login"
-                className="text-xs font-semibold text-emerald-200/80 hover:text-white transition-colors"
+                className={`text-xs font-semibold transition-colors ${
+                  pathname === "/login"
+                    ? "text-emerald-300 font-bold"
+                    : "text-emerald-200/80 hover:text-white"
+                }`}
               >
                 Login
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/register"
                 className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-full bg-emerald-400 text-[#071410] hover:bg-emerald-300 transition-all shadow-md shadow-emerald-400/20 hover:scale-[1.02]"
               >
                 Register
-              </a>
+              </Link>
             </div>
           )}
         </div>
 
-        {/* Mobile menu toggle */}
+        {/* Mobile menu toggle button */}
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -143,59 +163,63 @@ export default function Navbar() {
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-emerald-900/30 bg-[#071410] px-4 py-4 space-y-2">
-          {session && (
-            <div className="pb-3 border-b border-emerald-900/30 flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-white block">{session.profile?.full_name}</span>
-                <span className="text-[10px] text-emerald-400/70 font-mono">
-                  Health ID: {session.profile?.health_id}
-                </span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 text-xs text-rose-400 font-semibold"
-              >
-                <LogOut className="w-3.5 h-3.5" /> Logout
-              </button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            {navLinks.map((link) => {
-              const Icon = link.icon;
-              return (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold ${
-                    pathname === link.href
-                      ? "bg-emerald-400 text-[#071410]"
-                      : "bg-[#091b15] text-emerald-200"
-                  }`}
+        <div className="lg:hidden border-t border-emerald-900/30 bg-[#071410] px-4 py-4 space-y-3">
+          {isLoggedIn ? (
+            <>
+              <div className="pb-3 border-b border-emerald-900/30 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">
+                    {session.profile?.full_name}
+                  </span>
+                  <span className="text-[10px] text-emerald-400/70 font-mono">
+                    Health ID: {session.profile?.health_id}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 text-xs text-rose-400 font-semibold"
                 >
-                  <Icon className="w-3.5 h-3.5" />
-                  {link.label}
-                </a>
-              );
-            })}
-          </div>
+                  <LogOut className="w-3.5 h-3.5" /> Logout
+                </button>
+              </div>
 
-          {!session && (
-            <div className="pt-3 border-t border-emerald-900/30 flex gap-2">
-              <a
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {currentNavLinks.map((link) => {
+                  const Icon = link.icon;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold ${
+                        pathname === link.href
+                          ? "bg-emerald-400 text-[#071410]"
+                          : "bg-[#091b15] text-emerald-200"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="pt-2 flex flex-col gap-2">
+              <Link
                 href="/login"
-                className="w-1/2 py-2 text-center rounded-xl bg-[#091b15] text-emerald-200 text-xs font-semibold"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-2.5 text-center rounded-xl bg-[#091b15] text-emerald-200 text-xs font-semibold"
               >
-                Login
-              </a>
-              <a
+                Sign In to MediCare
+              </Link>
+              <Link
                 href="/register"
-                className="w-1/2 py-2 text-center rounded-xl bg-emerald-400 text-[#071410] text-xs font-bold"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-2.5 text-center rounded-xl bg-emerald-400 text-[#071410] text-xs font-bold"
               >
-                Register
-              </a>
+                Create Free Account
+              </Link>
             </div>
           )}
         </div>

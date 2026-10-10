@@ -25,6 +25,7 @@ import {
   Sparkles,
   ArrowRight,
   FileText,
+  Lock,
 } from "lucide-react";
 import { getLocalSession } from "@/lib/auth";
 import {
@@ -37,6 +38,7 @@ import {
 } from "@/lib/types/database";
 
 export default function SummaryDashboardPage() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
@@ -49,10 +51,16 @@ export default function SummaryDashboardPage() {
 
   useEffect(() => {
     async function loadAll() {
+      const session = getLocalSession();
+      if (!session) {
+        setAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+      setAuthenticated(true);
       try {
         setLoading(true);
-        const session = getLocalSession();
-        const patientId = session?.user?.id || "demo-patient-001";
+        const patientId = session.user.id;
 
         const [profRes, encRes, trendsRes] = await Promise.all([
           fetch(`/api/profile?patient_id=${patientId}`),
@@ -155,6 +163,28 @@ export default function SummaryDashboardPage() {
   const latestDiastolic = [...labResults]
     .filter((r) => r.test_name.toLowerCase().includes("diastolic"))
     .pop();
+
+  if (authenticated === false) {
+    return (
+      <div className="max-w-md mx-auto py-24 px-4 text-center space-y-5">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-white">Sign In Required</h2>
+          <p className="text-xs text-emerald-300/70">
+            Please log in to your patient account to access your medical records, appointments, and care overview.
+          </p>
+        </div>
+        <a
+          href="/login"
+          className="inline-block px-6 py-2.5 rounded-full bg-emerald-400 text-[#071410] font-bold text-xs hover:bg-emerald-300 transition-all shadow-md shadow-emerald-400/20"
+        >
+          Sign In as Patient
+        </a>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

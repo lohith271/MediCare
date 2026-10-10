@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Stethoscope,
   Calendar,
@@ -22,6 +23,7 @@ import {
   Trash2,
   Tag,
   Sparkles,
+  Lock,
 } from "lucide-react";
 import {
   Encounter,
@@ -32,6 +34,7 @@ import {
 import { getLocalSession } from "@/lib/auth";
 
 export default function ConsultationsPage() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
   const [appointments, setAppointments] = useState<FollowUpAppointment[]>([]);
@@ -76,12 +79,11 @@ export default function ConsultationsPage() {
   const [apptReason, setApptReason] = useState("");
   const [apptInstructions, setApptInstructions] = useState("");
 
-  const fetchData = async () => {
+  const fetchData = async (overrideId?: string) => {
     try {
       setLoading(true);
       const session = getLocalSession();
-      const patientId = session?.user?.id || "demo-patient-001";
-
+      const patientId = overrideId || session?.user?.id || "demo-patient-001";
       const res = await fetch(`/api/encounters?patient_id=${patientId}`);
       const data = await res.json();
 
@@ -98,7 +100,14 @@ export default function ConsultationsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const session = getLocalSession();
+    if (!session) {
+      setAuthenticated(false);
+      setLoading(false);
+      return;
+    }
+    setAuthenticated(true);
+    fetchData(session.user.id);
   }, []);
 
   const handleAddPrescriptionRow = () => {
@@ -306,6 +315,37 @@ export default function ConsultationsPage() {
       d.name_canonical.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (d.doctor_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (authenticated === false) {
+    return (
+      <div className="max-w-md mx-auto py-24 px-4 text-center space-y-5">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-white">Sign In to View Consultations</h2>
+          <p className="text-xs text-emerald-300/70">
+            Doctor consultation notes, diagnoses, and appointment reminders are available after signing in to your patient account.
+          </p>
+        </div>
+        <Link
+          href="/login"
+          className="inline-block px-6 py-2.5 rounded-full bg-emerald-400 text-[#071410] font-bold text-xs hover:bg-emerald-300 transition-all shadow-md shadow-emerald-400/20"
+        >
+          Sign In as Patient
+        </Link>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto py-20 px-4 text-center">
+        <div className="inline-block w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-emerald-300/80 text-sm">Loading consultations and clinical records...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
