@@ -112,7 +112,6 @@ We would rather state these openly than have a judge find them:
 
 | Area | Status |
 |---|---|
-| **Confirming an extracted document** | Saves the document as confirmed, but its medicines, labs, diagnoses, and allergies are not yet written to the timeline. Those entries must be added by hand for now. *To fix.* |
 | **Doctor view of a share code** | The doctor receives a valid token, but the doctor's pages do not yet send it when reading records, so patient data is not displayed to doctors yet. *To fix.* |
 | **Vault upload metadata** | Title, category, doctor, and notes are not saved for files uploaded through the vault form. *To fix.* |
 | **Emergency request** | The doctor's request still includes the patient ID in the request body. Server-side checks apply, but this should come from the lookup result. *To tighten.* |
