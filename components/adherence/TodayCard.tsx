@@ -153,9 +153,9 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
 
   if (loading || !data) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm animate-pulse">
+      <div className="bg-slate-900 dark:bg-slate-900 border border-slate-700 dark:border-slate-800 rounded-2xl p-6 shadow-sm animate-pulse">
         <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded mb-4" />
-        <div className="h-28 bg-slate-100 dark:bg-slate-850 rounded-xl" />
+        <div className="h-28 bg-slate-800 dark:bg-slate-800 rounded-xl" />
       </div>
     );
   }
@@ -171,13 +171,13 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
   return (
     <section
       aria-labelledby="today-doses-heading"
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-6"
+      className="bg-slate-900 dark:bg-slate-900 border border-slate-700 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-6"
     >
       {/* Top Banner: Next Dose Due + Circular Progress Ring */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6 pb-6 border-b border-slate-800 dark:border-slate-800">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
               Today&apos;s Schedule
             </span>
             <span className="text-xs text-slate-400">
@@ -187,7 +187,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
 
           <h2
             id="today-doses-heading"
-            className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1"
+            className="text-2xl font-bold text-slate-100 dark:text-slate-100 mt-1"
           >
             Today&apos;s Doses
           </h2>
@@ -195,7 +195,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
           {/* Next Dose Callout */}
           <div className="mt-3 flex items-center gap-3">
             {data.nextDose ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 text-sm font-medium">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-950/60 dark:bg-amber-950/60 border border-amber-800 dark:border-amber-800/80 text-amber-200 dark:text-amber-200 text-sm font-medium">
                 <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span>
                   Next due: <strong>{data.nextDose.medicineName}</strong> at{" "}
@@ -204,10 +204,10 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                 <span
                   className={`text-[11px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${
                     data.nextDose.status === "due_now"
-                      ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
+                      ? "bg-amber-200 text-amber-200 dark:bg-amber-800 dark:text-amber-100"
                       : data.nextDose.status === "overdue"
                       ? "bg-rose-200 text-rose-900 dark:bg-rose-800 dark:text-rose-100"
-                      : "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                      : "bg-slate-200 text-slate-200 dark:bg-slate-800 dark:text-slate-200"
                   }`}
                 >
                   {data.nextDose.status === "due_now" && "Due Now"}
@@ -216,12 +216,12 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                 </span>
               </div>
             ) : data.totalScheduled > 0 && data.totalTaken === data.totalScheduled ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-sm font-medium">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950/60 dark:bg-emerald-950/60 border border-emerald-800 dark:border-emerald-800 text-emerald-200 dark:text-emerald-200 text-sm font-medium">
                 <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>All doses taken for today! Excellent streak work.</span>
               </div>
             ) : (
-              <span className="text-sm text-slate-500">
+              <span className="text-sm text-slate-400">
                 No upcoming scheduled doses for today.
               </span>
             )}
@@ -229,7 +229,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
         </div>
 
         {/* Progress Ring Widget */}
-        <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-850 p-3.5 sm:p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shrink-0 self-start sm:self-auto">
+        <div className="flex items-center gap-4 bg-slate-800/60 dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl border border-slate-700/80 dark:border-slate-800 shrink-0 self-start sm:self-auto">
           <div className="relative w-20 h-20 flex items-center justify-center">
             <svg height={radius * 2} width={radius * 2} className="rotate-[-90deg]">
               <circle
@@ -255,17 +255,17 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+              <span className="text-base font-extrabold text-slate-100 dark:text-slate-100">
                 {data.progressPercent}%
               </span>
             </div>
           </div>
 
           <div>
-            <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            <div className="text-sm font-bold text-slate-100 dark:text-slate-100">
               {data.totalTaken} of {data.totalScheduled} doses taken
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <div className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">
               {data.totalRemaining} remaining today
             </div>
             {data.totalSkipped > 0 && (
@@ -288,7 +288,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
 
           return (
             <div key={period} className="space-y-3">
-              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+              <div className="flex items-center gap-2 text-slate-300 dark:text-slate-300 font-semibold text-sm">
                 <IconComponent className={`w-4 h-4 ${config.color}`} />
                 <span>{config.label}</span>
                 <span className="text-xs font-normal text-slate-400">
@@ -304,34 +304,34 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                   return (
                     <div
                       key={dose.doseId}
-                      className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50 hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      className="p-3.5 rounded-xl border border-slate-700 dark:border-slate-800 bg-slate-800/60/50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       {/* Left: Dose Information */}
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                          <span className="font-bold text-slate-100 dark:text-slate-100 text-sm">
                             {dose.medicineName}
                           </span>
                           {dose.strength && (
-                            <span className="text-xs font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
+                            <span className="text-xs font-medium text-slate-400 bg-slate-900 dark:bg-slate-800 border border-slate-700 dark:border-slate-700 px-2 py-0.5 rounded">
                               {dose.strength}
                             </span>
                           )}
                           {dose.dose && (
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-slate-400">
                               as written: {dose.dose}
                             </span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-2 text-xs flex-wrap">
-                          <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                          <span className="font-medium text-slate-300 dark:text-slate-300 flex items-center gap-1">
                             <Clock className="w-3 h-3 text-slate-400" />
                             {dose.scheduledTime}
                           </span>
 
                           {dose.mealRelationLabel && (
-                            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800 font-medium">
+                            <span className="inline-flex items-center gap-1 bg-amber-950/60 text-amber-200 dark:bg-amber-950 dark:text-amber-200 px-2 py-0.5 rounded-md border border-amber-800 dark:border-amber-800 font-medium">
                               <Utensils className="w-3 h-3 text-amber-600" />
                               {dose.mealRelationLabel}
                             </span>
@@ -341,14 +341,14 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                           <span
                             className={`px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
                               dose.status === "taken"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                                ? "bg-emerald-950 text-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
                                 : dose.status === "skipped"
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
+                                ? "bg-amber-100 text-amber-200 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
                                 : dose.status === "due_now"
-                                ? "bg-amber-50 text-amber-900 dark:bg-amber-900/60 dark:text-amber-100 border border-amber-300 ring-1 ring-amber-400"
+                                ? "bg-amber-950/60 text-amber-200 dark:bg-amber-900/60 dark:text-amber-100 border border-amber-300 ring-1 ring-amber-400"
                                 : dose.status === "overdue"
-                                ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300"
-                                : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+                                ? "bg-rose-100 text-rose-200 dark:bg-rose-950 dark:text-rose-300 border border-rose-300"
+                                : "bg-slate-200 text-slate-300 dark:bg-slate-800 dark:text-slate-400"
                             }`}
                           >
                             {dose.status === "due_now" && "Due Now"}
@@ -371,7 +371,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 shadow-sm ${
                             dose.status === "taken"
                               ? "bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-400 ring-offset-1"
-                              : "bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-slate-800 dark:hover:bg-emerald-950/60 dark:border-emerald-700 dark:text-emerald-300"
+                              : "bg-slate-900 hover:bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-slate-800 dark:hover:bg-emerald-950/60 dark:border-emerald-700 dark:text-emerald-300"
                           }`}
                           aria-label={
                             dose.status === "taken"
@@ -392,7 +392,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                           className={`px-3 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${
                             dose.status === "skipped"
                               ? "bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400 ring-offset-1"
-                              : "bg-white hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
+                              : "bg-slate-900 hover:bg-amber-50 text-slate-400 hover:text-amber-700 border border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
                           }`}
                           aria-label={
                             dose.status === "skipped"
@@ -415,11 +415,11 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
 
       {/* Empty State when no scheduled, SOS, or unrecognized meds exist */}
       {data.totalScheduled === 0 && data.asNeededMeds.length === 0 && data.unrecognizedMeds.length === 0 && (
-        <div className="p-8 text-center rounded-xl bg-slate-50 dark:bg-slate-850/60 border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
-          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+        <div className="p-8 text-center rounded-xl bg-slate-800/60 dark:bg-slate-800/60 border border-dashed border-slate-700 dark:border-slate-800 space-y-2">
+          <p className="text-sm font-semibold text-slate-200 dark:text-slate-200">
             No active medications scheduled for today
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+          <p className="text-xs text-slate-400 dark:text-slate-400 max-w-sm mx-auto">
             Once you upload and confirm a prescription or consultation record, your daily dose timetable will automatically appear here.
           </p>
         </div>
@@ -427,8 +427,8 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
 
       {/* As-Needed (SOS / PRN) Medications */}
       {data.asNeededMeds.length > 0 && (
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm mb-3">
+        <div className="pt-4 border-t border-slate-800 dark:border-slate-800">
+          <div className="flex items-center gap-2 text-slate-300 dark:text-slate-300 font-semibold text-sm mb-3">
             <HelpCircle className="w-4 h-4 text-sky-500" />
             <span>As Needed (SOS / PRN)</span>
             <span className="text-xs font-normal text-slate-400">
@@ -440,17 +440,17 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
             {data.asNeededMeds.map((med) => (
               <div
                 key={med.id}
-                className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50 flex items-center justify-between"
+                className="p-3 rounded-xl border border-slate-700 dark:border-slate-800 bg-slate-800/60/50 dark:bg-slate-800/50 flex items-center justify-between"
               >
                 <div>
-                  <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                  <div className="font-semibold text-slate-100 dark:text-slate-100 text-sm">
                     {med.name_as_written}
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
+                  <div className="text-xs text-slate-400 mt-0.5">
                     {med.strength || ""} {med.dose ? `• ${med.dose}` : ""}
                   </div>
                 </div>
-                <span className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 px-2 py-1 rounded font-medium border border-sky-200 dark:border-sky-800">
+                <span className="text-xs bg-sky-950/60 text-sky-700 dark:bg-sky-950 dark:text-sky-300 px-2 py-1 rounded font-medium border border-sky-800 dark:border-sky-800">
                   SOS
                 </span>
               </div>
@@ -461,9 +461,9 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
 
       {/* Unrecognized Prescriptions -> Timing not found + "Set times" */}
       {data.unrecognizedMeds.length > 0 && (
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/30 space-y-3">
-            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-semibold text-sm">
+        <div className="pt-4 border-t border-slate-800 dark:border-slate-800">
+          <div className="p-4 rounded-xl border border-amber-800 dark:border-amber-800/80 bg-amber-950/60/50 dark:bg-amber-950/30 space-y-3">
+            <div className="flex items-center gap-2 text-amber-200 dark:text-amber-200 font-semibold text-sm">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
               <span>Timing not found on the prescription</span>
             </div>
@@ -475,13 +475,13 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
               {data.unrecognizedMeds.map((med) => (
                 <div
                   key={med.id}
-                  className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 flex items-center justify-between"
+                  className="p-2.5 rounded-lg bg-slate-900 dark:bg-slate-900 border border-amber-800 dark:border-amber-800 flex items-center justify-between"
                 >
                   <div className="text-xs">
-                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                    <span className="font-bold text-slate-100 dark:text-slate-100">
                       {med.name_as_written}
                     </span>
-                    <span className="text-slate-500 ml-2">
+                    <span className="text-slate-400 ml-2">
                       ({med.frequency || "no frequency written"})
                     </span>
                   </div>
@@ -510,21 +510,21 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
           aria-labelledby="set-times-title"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <h3 id="set-times-title" className="font-bold text-slate-900 dark:text-slate-100 text-base">
+          <div className="bg-slate-900 dark:bg-slate-900 border border-slate-700 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-800 dark:border-slate-800">
+              <h3 id="set-times-title" className="font-bold text-slate-100 dark:text-slate-100 text-base">
                 Set Schedule Times
               </h3>
               <button
                 onClick={() => setOverrideMed(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-200"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 Choose up to 4 daily dose times for <strong>{overrideMed.name}</strong>.
                 This is saved as an adherence schedule override and never edits the prescription.
               </p>
@@ -542,7 +542,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                       next[idx] = e.target.value;
                       setSelectedTimes(next);
                     }}
-                    className="px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 flex-1"
+                    className="px-3 py-2 border rounded-lg text-sm bg-slate-800/60 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-100 dark:text-slate-100 flex-1"
                   />
                   {selectedTimes.length > 1 && (
                     <button
@@ -550,7 +550,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
                       onClick={() =>
                         setSelectedTimes(selectedTimes.filter((_, i) => i !== idx))
                       }
-                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
+                      className="p-2 text-rose-500 hover:bg-rose-950/60 rounded-lg"
                       aria-label="Remove time"
                     >
                       <X className="w-4 h-4" />
@@ -572,11 +572,11 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setOverrideMed(null)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>

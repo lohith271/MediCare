@@ -164,12 +164,12 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
         <div>
           <h2
             id="streak-calendar-heading"
-            className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+            className="text-xl font-bold text-slate-100 dark:text-slate-100 flex items-center gap-2"
           >
             <CalendarIcon className="w-5 h-5 text-emerald-600" aria-hidden="true" />
             Adherence & Streak Calendar
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">
             Track daily doses, build healthy habits, and review your adherence history.
           </p>
         </div>
@@ -179,11 +179,11 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
       <StatsStrip stats={stats} loading={loading} />
 
       {/* Monthly Calendar Card */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm">
+      <div className="bg-slate-900 dark:bg-slate-900 border border-slate-700 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm">
         {/* Month Navigation */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+            <h3 className="text-base font-bold text-slate-100 dark:text-slate-100">
               {monthTitle}
             </h3>
             <span className="text-xs text-slate-400">Asia/Kolkata</span>
@@ -193,14 +193,14 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
             <button
               onClick={handlePrevMonth}
               aria-label="Previous month"
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+              className="p-1.5 rounded-lg border border-slate-700 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-300 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={handleNextMonth}
               aria-label="Next month"
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+              className="p-1.5 rounded-lg border border-slate-700 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-300 transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -222,7 +222,7 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
           {paddingSlots.map((_, i) => (
             <div
               key={`pad-${i}`}
-              className="min-h-[58px] sm:min-h-[72px] rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-transparent"
+              className="min-h-[58px] sm:min-h-[72px] rounded-xl bg-slate-800/60/50 dark:bg-slate-900/30 border border-transparent"
               aria-hidden="true"
             />
           ))}
@@ -244,7 +244,7 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
                     className={`text-xs font-bold ${
                       day.isToday
                         ? "w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center -ml-0.5"
-                        : "text-slate-800 dark:text-slate-200"
+                        : "text-slate-200 dark:text-slate-200"
                     }`}
                   >
                     {day.dayNumber}
@@ -253,7 +253,7 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
                 </div>
 
                 {/* Dose fraction counter */}
-                <div className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">
+                <div className="text-[10px] sm:text-xs font-medium text-slate-400 dark:text-slate-400">
                   {day.totalScheduled > 0 ? (
                     <span>
                       {day.totalTaken}/{day.totalScheduled}
@@ -269,10 +269,10 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
 
         {/* Accessible Visual Legend (Never rely on colour alone) */}
         <div
-          className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-600 dark:text-slate-300"
+          className="mt-6 pt-4 border-t border-slate-800 dark:border-slate-800 flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-400 dark:text-slate-300"
           aria-label="Calendar legend"
         >
-          <span className="font-semibold text-slate-700 dark:text-slate-200">Legend:</span>
+          <span className="font-semibold text-slate-300 dark:text-slate-200">Legend:</span>
           <div className="flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             <span>Perfect (all taken)</span>
@@ -312,7 +312,7 @@ function getCalendarStyle(state: DayState, isToday: boolean) {
     return {
       label: "Today (in progress)",
       wrapperClass:
-        "bg-sky-50/70 border-sky-300 dark:bg-sky-950/40 dark:border-sky-800 ring-2 ring-sky-400/80",
+        "bg-sky-950/60/70 border-sky-300 dark:bg-sky-950/40 dark:border-sky-800 ring-2 ring-sky-400/80",
       icon: <Sparkles className="w-3 h-3 text-sky-600 dark:text-sky-400" aria-hidden="true" />,
     };
   }
@@ -322,7 +322,7 @@ function getCalendarStyle(state: DayState, isToday: boolean) {
       return {
         label: "Perfect Day",
         wrapperClass:
-          "bg-emerald-50/70 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 hover:border-emerald-400",
+          "bg-emerald-950/60/70 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 hover:border-emerald-400",
         icon: (
           <CheckCircle2
             className="w-3 h-3 text-emerald-600 dark:text-emerald-400"
@@ -334,7 +334,7 @@ function getCalendarStyle(state: DayState, isToday: boolean) {
       return {
         label: "Partial Day",
         wrapperClass:
-          "bg-amber-50/70 border-amber-300 dark:bg-amber-950/40 dark:border-amber-800 hover:border-amber-400",
+          "bg-amber-950/60/70 border-amber-300 dark:bg-amber-950/40 dark:border-amber-800 hover:border-amber-400",
         icon: (
           <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400" aria-hidden="true" />
         ),
@@ -343,7 +343,7 @@ function getCalendarStyle(state: DayState, isToday: boolean) {
       return {
         label: "Missed Day",
         wrapperClass:
-          "bg-rose-50/70 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800 hover:border-rose-400",
+          "bg-rose-950/60/70 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800 hover:border-rose-400",
         icon: (
           <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" aria-hidden="true" />
         ),
@@ -352,7 +352,7 @@ function getCalendarStyle(state: DayState, isToday: boolean) {
       return {
         label: "Neutral",
         wrapperClass:
-          "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300",
+          "bg-slate-800/60 dark:bg-slate-900 border-slate-700 dark:border-slate-800 hover:border-slate-300",
         icon: (
           <CircleSlash className="w-3 h-3 text-slate-300 dark:text-slate-600" aria-hidden="true" />
         ),

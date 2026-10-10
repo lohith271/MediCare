@@ -147,10 +147,13 @@ export default function DocumentReviewPage({ params }: PageProps) {
         throw new Error(data.error || "Failed to confirm document");
       }
 
-      setSuccessMsg("Document confirmed! Clinical records synchronized successfully.");
+      const c = data.records_created ?? {};
+      setSuccessMsg(
+        `Saved: ${c.medications ?? 0} medicines (added to today's doses), ${c.lab_results ?? 0} lab results, ${c.diagnoses ?? 0} diagnoses, ${c.allergies ?? 0} allergies.`
+      );
       setTimeout(() => {
-        router.push("/documents");
-      }, 1200);
+        router.push("/summary");
+      }, 1800);
     } catch (err: unknown) {
       setErrorMsg((err as Error).message);
       setSaving(false);

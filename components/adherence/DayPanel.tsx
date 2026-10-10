@@ -47,14 +47,14 @@ export function DayPanel({ day, onClose, onLogDose, loggingId }: DayPanelProps) 
       aria-labelledby="day-panel-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-slate-900 dark:bg-slate-900 border border-slate-700 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+        <div className="p-4 sm:p-5 border-b border-slate-800 dark:border-slate-800 flex items-center justify-between bg-slate-800/60/50 dark:bg-slate-800/40">
           <div>
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
               Dose Details
             </span>
-            <h3 id="day-panel-title" className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+            <h3 id="day-panel-title" className="text-lg font-bold text-slate-100 dark:text-slate-100 mt-0.5">
               {formatFullDate(day.date)}
             </h3>
           </div>
@@ -68,27 +68,27 @@ export function DayPanel({ day, onClose, onLogDose, loggingId }: DayPanelProps) 
         </div>
 
         {/* Status Banner */}
-        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs bg-slate-50/30 dark:bg-slate-850">
+        <div className="px-5 py-3 border-b border-slate-800 dark:border-slate-800 flex items-center justify-between text-xs bg-slate-800/60/30 dark:bg-slate-800">
           <div className="flex items-center gap-2">
-            <span className="text-slate-500 dark:text-slate-400">Day State:</span>
+            <span className="text-slate-400 dark:text-slate-400">Day State:</span>
             <span
               className={`font-semibold capitalize px-2 py-0.5 rounded-full border ${
                 day.state === "perfect"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700"
+                  ? "bg-emerald-950/60 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700"
                   : day.state === "partial"
-                  ? "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700"
+                  ? "bg-amber-950/60 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700"
                   : day.state === "missed"
-                  ? "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700"
+                  ? "bg-rose-950/60 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700"
                   : day.state === "today"
-                  ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-700"
-                  : "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+                  ? "bg-sky-950/60 text-sky-700 border-sky-300 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-700"
+                  : "bg-slate-800 text-slate-400 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
               }`}
             >
               {day.state}
             </span>
           </div>
 
-          <div className="text-slate-500 dark:text-slate-400">
+          <div className="text-slate-400 dark:text-slate-400">
             {day.totalTaken} of {day.totalScheduled} doses taken
           </div>
         </div>
@@ -96,7 +96,7 @@ export function DayPanel({ day, onClose, onLogDose, loggingId }: DayPanelProps) 
         {/* Doses List */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-3 flex-1">
           {day.doses.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">
+            <div className="text-center py-8 text-slate-400 dark:text-slate-400 text-sm">
               <Clock className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
               No medications scheduled for this day.
             </div>
@@ -108,33 +108,33 @@ export function DayPanel({ day, onClose, onLogDose, loggingId }: DayPanelProps) 
               return (
                 <div
                   key={dose.doseId}
-                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="p-3.5 rounded-xl border border-slate-700 dark:border-slate-800 bg-slate-900 dark:bg-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                      <span className="font-semibold text-slate-100 dark:text-slate-100 text-sm">
                         {dose.medicineName}
                       </span>
                       {dose.strength && (
-                        <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                        <span className="text-xs text-slate-400 bg-slate-800 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                           {dose.strength}
                         </span>
                       )}
                       {dose.dose && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                        <span className="text-xs text-slate-400 dark:text-slate-400">
                           ({dose.dose})
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-                      <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-400 flex-wrap">
+                      <span className="inline-flex items-center gap-1 font-medium text-slate-300 dark:text-slate-300">
                         <Clock className="w-3 h-3 text-slate-400" />
                         {dose.scheduledTime} ({dose.slotPeriod})
                       </span>
 
                       {dose.mealRelationLabel && (
-                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 text-[11px]">
+                        <span className="inline-flex items-center gap-1 bg-amber-950/60 text-amber-700 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-800 dark:border-amber-800 text-[11px]">
                           <Utensils className="w-2.5 h-2.5" />
                           {dose.mealRelationLabel}
                         </span>
@@ -148,12 +148,12 @@ export function DayPanel({ day, onClose, onLogDose, loggingId }: DayPanelProps) 
                     <span
                       className={`text-xs font-medium px-2 py-1 rounded-md border ${
                         dose.status === "taken"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300"
+                          ? "bg-emerald-950/60 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300"
                           : dose.status === "skipped"
-                          ? "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300"
+                          ? "bg-amber-950/60 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300"
                           : dose.status === "missed"
-                          ? "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300"
-                          : "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400"
+                          ? "bg-rose-950/60 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300"
+                          : "bg-slate-800 text-slate-400 border-slate-300 dark:bg-slate-800 dark:text-slate-400"
                       }`}
                     >
                       {dose.status === "taken" && "Taken"}
@@ -210,12 +210,12 @@ export function DayPanel({ day, onClose, onLogDose, loggingId }: DayPanelProps) 
         </div>
 
         {/* Footer info */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-4 border-t border-slate-800 dark:border-slate-800 bg-slate-800/60 dark:bg-slate-800/50 flex items-center justify-between text-xs text-slate-400">
           <span>Decision support only, not a diagnosis.</span>
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg font-medium transition-colors"
+            className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-200 dark:text-slate-200 rounded-lg font-medium transition-colors"
           >
             Close
           </button>

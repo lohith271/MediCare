@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { documentsStore } from "@/lib/documents/store";
 import { withFileUrl } from "@/lib/documents/links";
 import { MedicalDataExtract } from "@/lib/llm/adapter";
+import { commitExtraction } from "@/lib/documents/commit";
 import { errorResponse, requireSignedInPatient } from "@/lib/access/patient-access";
 
 export const runtime = "nodejs";
@@ -34,26 +35,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const confirmedData = payload.reviewed_data || doc.draft_json;
 
-    // Counts of the extracted items. The clinical tables are not written here yet.
-    let medsCount = 0;
-    let labsCount = 0;
-    let diagCount = 0;
-    let allergyCount = 0;
-
-    if (confirmedData) {
-      if ("medications" in confirmedData && Array.isArray(confirmedData.medications)) {
-        medsCount = confirmedData.medications.length;
-      }
-      if ("lab_results" in confirmedData && Array.isArray(confirmedData.lab_results)) {
-        labsCount = confirmedData.lab_results.length;
-      }
-      if ("diagnoses" in confirmedData && Array.isArray(confirmedData.diagnoses)) {
-        diagCount = confirmedData.diagnoses.length;
-      }
-      if ("allergies" in confirmedData && Array.isArray(confirmedData.allergies)) {
-        allergyCount = confirmedData.allergies.length;
-      }
+    if (!confirmedData) {
+      return NextResponse.json({ error: "Nothing to confirm: the document has no extracted data" }, { status: 400 });
     }
+
+    // Write the reviewed items to the clinical tables first; only then mark the document confirmed.
+    const counts = await commitExtraction(patientId, id, confirmedData);
 
     const updated = await documentsStore.updateStatus(patientId, id, "confirmed", {
       draft_json: confirmedData,
@@ -61,15 +48,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     return NextResponse.json({
       success: true,
-      message: "Document confirmed and clinical records successfully synchronized",
+      message: "Document confirmed and clinical records saved",
       document_id: id,
       document: updated ? await withFileUrl(updated) : null,
-      records_created: {
-        medications: medsCount,
-        lab_results: labsCount,
-        diagnoses: diagCount,
-        allergies: allergyCount,
-      },
+      records_created: counts,
     });
   } catch (error: unknown) {
     console.error("Confirmation error:", error);
