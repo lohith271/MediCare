@@ -85,13 +85,85 @@ export async function GET(request: NextRequest) {
       includeSources: true,
     });
 
-    return NextResponse.json({ summary });
+    let labs: any[] = [];
+    if (user?.id) {
+      const labsRes = await supabase
+        .from("lab_results")
+        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .eq("patient_id", patientId)
+        .eq("confirmed", true);
+      if (labsRes.data && labsRes.data.length > 0) {
+        labs = labsRes.data;
+      }
+    }
+    if (labs.length === 0) {
+      const demoData = DEMO_PATIENTS_DATA[patientId] || DEMO_PATIENTS_DATA["demo-patient-001"];
+      labs = demoData?.lab_results || [];
+    }
+
+    return NextResponse.json({ summary, labs });
   } catch (error: any) {
     console.error("Error generating clinical summary:", error);
     // Graceful demo fallback on error
     const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
     const summary = buildSummary(demoData.medications, demoData.diagnoses, demoData.allergies);
-    return NextResponse.json({ summary });
+    return NextResponse.json({ summary, labs: demoData.lab_results });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { substance, reaction } = body;
+
+    if (!substance || !substance.trim()) {
+      return NextResponse.json({ error: "Substance name is required" }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    const newAllergy: AllergyRecord = {
+      id: `all-patient-${Date.now()}`,
+      patient_id: user?.id || "demo-patient-001",
+      source_type: "patient",
+      document_id: null,
+      page_number: null,
+      evidence_text: `Added by you on ${todayStr}`,
+      substance: substance.trim(),
+      reaction: (reaction || "").trim() || "Adverse reaction reported",
+      created_on: todayStr,
+      confidence: 1.0,
+      confirmed: true,
+    };
+
+    if (user?.id) {
+      await supabase.from("allergies").insert([
+        {
+          patient_id: user.id,
+          source_type: "patient",
+          substance: newAllergy.substance,
+          reaction: newAllergy.reaction,
+          evidence_text: newAllergy.evidence_text,
+          confidence: 1.0,
+          confirmed: true,
+        },
+      ]);
+    } else {
+      // In-memory demo store
+      const demoPatient = DEMO_PATIENTS_DATA["demo-patient-001"];
+      demoPatient.allergies.unshift(newAllergy);
+    }
+
+    return NextResponse.json({ success: true, allergy: newAllergy });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Failed to record bad reaction" },
+      { status: 500 }
+    );
   }
 }
 

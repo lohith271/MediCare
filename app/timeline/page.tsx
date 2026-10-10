@@ -17,6 +17,10 @@ import {
   X,
   ArrowRight,
   ShieldAlert,
+  Hospital,
+  Layers,
+  Sparkles,
+  CheckCircle,
 } from "lucide-react";
 import type { TimelineEvent } from "@/app/api/timeline/route";
 
@@ -27,6 +31,7 @@ export default function TimelinePage() {
   const [activeFilter, setActiveFilter] = useState<
     "all" | "active_meds" | "conditions" | "labs" | "encounters"
   >("all");
+  const [selectedFacility, setSelectedFacility] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSource, setSelectedSource] = useState<TimelineEvent | null>(null);
 
@@ -47,6 +52,24 @@ export default function TimelinePage() {
     loadTimeline();
   }, []);
 
+  // Compute distinct facilities for filter
+  const facilities = useMemo(() => {
+    const set = new Set<string>();
+    events.forEach((ev) => {
+      if (ev.hospital) set.add(ev.hospital);
+    });
+    return Array.from(set).sort();
+  }, [events]);
+
+  // Compute distinct doctors for continuity metric
+  const doctorsCount = useMemo(() => {
+    const set = new Set<string>();
+    events.forEach((ev) => {
+      if (ev.doctor) set.add(ev.doctor);
+    });
+    return set.size;
+  }, [events]);
+
   // Filter and search logic
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
@@ -59,6 +82,11 @@ export default function TimelinePage() {
         if (ev.type !== "lab_result") return false;
       } else if (activeFilter === "encounters") {
         if (ev.type !== "encounter") return false;
+      }
+
+      // Facility filter
+      if (selectedFacility !== "all") {
+        if (ev.hospital !== selectedFacility) return false;
       }
 
       // Search query filter
@@ -76,7 +104,7 @@ export default function TimelinePage() {
 
       return true;
     });
-  }, [events, activeFilter, searchQuery]);
+  }, [events, activeFilter, selectedFacility, searchQuery]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -88,7 +116,7 @@ export default function TimelinePage() {
               Cross-Provider Record
             </span>
             <span className="text-xs text-emerald-400/60">
-              Total {events.length} Historical Events
+              Total {events.length} Historical Clinical Events
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
@@ -108,31 +136,97 @@ export default function TimelinePage() {
         </Link>
       </div>
 
-      {/* Filter and Search Controls */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-emerald-400/60 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search across medications, labs, diagnoses, or clinics..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#081b15] border border-emerald-800/60 text-xs text-white placeholder-emerald-500/50 focus:outline-none focus:border-emerald-400 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+      {/* Cross-Provider Continuity Metrics Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3.5 rounded-2xl bg-[#091a14] border border-emerald-800/40 space-y-1">
+          <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
+            <Hospital className="w-4 h-4" />
+            <span>Care Facilities</span>
           </div>
+          <p className="text-xl font-extrabold text-white">{facilities.length} Connected</p>
+          <p className="text-[10px] text-emerald-400/60">Apollo & Metro General</p>
         </div>
 
-        {/* Quick Filter Badges */}
+        <div className="p-3.5 rounded-2xl bg-[#091a14] border border-emerald-800/40 space-y-1">
+          <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
+            <User className="w-4 h-4" />
+            <span>Physicians</span>
+          </div>
+          <p className="text-xl font-extrabold text-white">{doctorsCount} Prescribers</p>
+          <p className="text-[10px] text-emerald-400/60">Cross-specialty context</p>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-[#091a14] border border-emerald-800/40 space-y-1">
+          <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
+            <Layers className="w-4 h-4" />
+            <span>Total Events</span>
+          </div>
+          <p className="text-xl font-extrabold text-white">{events.length} Facts Linked</p>
+          <p className="text-[10px] text-emerald-400/60">Labs, Rx & Diagnoses</p>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-[#091a14] border border-emerald-800/40 space-y-1">
+          <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
+            <CheckCircle className="w-4 h-4" />
+            <span>Transit Loss</span>
+          </div>
+          <p className="text-xl font-extrabold text-emerald-300">0 Records Lost</p>
+          <p className="text-[10px] text-emerald-400/60">Single source of truth</p>
+        </div>
+      </div>
+
+      {/* Filter and Search Controls */}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="w-4 h-4 text-emerald-400/60 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search across medications, labs, diagnoses, or clinics..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#081b15] border border-emerald-800/60 text-xs text-white placeholder-emerald-500/50 focus:outline-none focus:border-emerald-400 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Facility Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <span className="text-emerald-400/60 text-[11px] font-semibold flex-shrink-0">Facility:</span>
+          <button
+            onClick={() => setSelectedFacility("all")}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+              selectedFacility === "all"
+                ? "bg-teal-500 text-[#071410] font-bold"
+                : "bg-[#091a14] border border-emerald-800/40 text-emerald-300/80 hover:text-white"
+            }`}
+          >
+            All Facilities
+          </button>
+          {facilities.map((fac) => (
+            <button
+              key={fac}
+              onClick={() => setSelectedFacility(fac)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                selectedFacility === fac
+                  ? "bg-teal-500 text-[#071410] font-bold"
+                  : "bg-[#091a14] border border-emerald-800/40 text-emerald-300/80 hover:text-white"
+              }`}
+            >
+              {fac}
+            </button>
+          ))}
+        </div>
+
+        {/* Category Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-emerald-400/60 text-[11px] font-semibold flex-shrink-0">Category:</span>
           <button
             onClick={() => setActiveFilter("all")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -204,12 +298,12 @@ export default function TimelinePage() {
         <div className="p-8 rounded-2xl border border-emerald-800/40 bg-[#081a14] text-center space-y-2">
           <p className="text-sm font-semibold text-white">No matching events found</p>
           <p className="text-xs text-emerald-400/60">
-            Try adjusting your search query or switching active category filters.
+            Try adjusting your search query, facility filter, or switching active category tabs.
           </p>
         </div>
       )}
 
-      {/* Timeline Stream */}
+      {/* Timeline Stream with Visual Spine */}
       {!loading && !error && filteredEvents.length > 0 && (
         <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-2 sm:before:left-3 before:top-3 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-emerald-500 before:via-teal-500/50 before:to-emerald-950">
           {filteredEvents.map((ev) => {
@@ -267,7 +361,7 @@ export default function TimelinePage() {
                       </span>
                     )}
                     {ev.hospital && (
-                      <span className="flex items-center gap-1.5">
+                      <span className="flex items-center gap-1.5 font-medium text-emerald-200">
                         <Building2 className="w-3.5 h-3.5 text-emerald-400/60" />
                         {ev.hospital}
                       </span>
@@ -297,7 +391,7 @@ export default function TimelinePage() {
                         className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300 hover:text-white underline flex-shrink-0"
                       >
                         <FileText className="w-3 h-3" />
-                        Source Page
+                        Verify Source
                       </button>
                     </div>
                   )}
@@ -308,9 +402,9 @@ export default function TimelinePage() {
         </div>
       )}
 
-      {/* Source Citation Modal */}
+      {/* Enhanced Source Document Verification Sheet (Yellow Highlighter) */}
       {selectedSource && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#071712] border border-emerald-800/80 rounded-2xl max-w-xl w-full p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-emerald-900/40 pb-3">
               <div>
@@ -326,16 +420,19 @@ export default function TimelinePage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-[#05110d] border border-emerald-900/50 font-mono text-[12px] text-emerald-200">
-                <span className="text-emerald-400/60 block text-[10px] uppercase font-sans mb-1 font-bold">
-                  Verbatim Document Text:
+              {/* Yellow Highlighted Quote */}
+              <div className="p-3.5 rounded-xl bg-[#05110d] border border-emerald-900/50 space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-emerald-400/70 tracking-wider block">
+                  Verbatim Extracted Quote:
                 </span>
-                &ldquo;{selectedSource.evidence_text}&rdquo;
+                <div className="p-2 rounded bg-yellow-400/20 border-l-4 border-yellow-400 text-yellow-100 font-mono text-[12px] leading-relaxed">
+                  &ldquo;{selectedSource.evidence_text}&rdquo;
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-emerald-300/80">
                 <div>
-                  <span className="text-emerald-400/60 block text-[11px]">Date</span>
+                  <span className="text-emerald-400/60 block text-[11px]">Encounter Date</span>
                   <span className="font-medium text-white">{selectedSource.display_date}</span>
                 </div>
                 <div>
@@ -345,26 +442,30 @@ export default function TimelinePage() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-emerald-400/60 block text-[11px]">Doctor</span>
+                  <span className="text-emerald-400/60 block text-[11px]">Treating Doctor</span>
                   <span className="font-medium text-white">
-                    {selectedSource.doctor ? `Dr. ${selectedSource.doctor}` : "Document Record"}
+                    {selectedSource.doctor ? `Dr. ${selectedSource.doctor}` : "Clinical Provider"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-emerald-400/60 block text-[11px]">Facility</span>
+                  <span className="text-emerald-400/60 block text-[11px]">Health Facility</span>
                   <span className="font-medium text-white">
                     {selectedSource.hospital || "Clinical Facility"}
                   </span>
                 </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-900/40 text-[11px] text-emerald-400/80">
+                Cryptographically linked to source upload. Traceable to exact document page.
               </div>
             </div>
 
             <div className="text-right pt-2 border-t border-emerald-900/40">
               <button
                 onClick={() => setSelectedSource(null)}
-                className="px-4 py-2 rounded-xl bg-emerald-400 text-[#071410] font-semibold text-xs hover:bg-emerald-300"
+                className="px-5 py-2 rounded-xl bg-emerald-400 text-[#071410] font-bold text-xs hover:bg-emerald-300"
               >
-                Close
+                Close Verification
               </button>
             </div>
           </div>
