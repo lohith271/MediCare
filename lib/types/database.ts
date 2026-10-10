@@ -34,3 +34,109 @@ export interface TrustedContact {
   relation: string;
   created_at?: string;
 }
+
+export interface Diagnosis {
+  id: string;
+  patient_id: string;
+  document_id?: string | null;
+  page_number?: number | null;
+  evidence_text?: string | null;
+  name_as_written: string;
+  name_canonical: string;
+  diagnosed_date?: string;
+  doctor_name?: string;
+  hospital?: string;
+  notes?: string;
+  status?: "active" | "monitored" | "resolved";
+  confidence?: number;
+  confirmed: boolean;
+  created_at?: string;
+}
+
+export interface PrescribedMedicine {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+export interface Medication {
+  id: string;
+  patient_id: string;
+  document_id?: string | null;
+  page_number?: number | null;
+  evidence_text?: string | null;
+  name_as_written: string;
+  ingredients: string[];
+  strength?: string | null;
+  dose?: string | null;
+  frequency?: string | null;
+  duration_days?: number | null;
+  prescribed_by?: string;
+  hospital?: string;
+  start_date?: string;
+  patient_marked_stopped?: boolean;
+  stopped_on?: string | null;
+  confidence?: number;
+  confirmed: boolean;
+  created_at?: string;
+}
+
+export type EncounterKind = "visit" | "admission" | "follow_up" | "consultation";
+
+export interface Encounter {
+  id: string;
+  patient_id: string;
+  document_id?: string | null;
+  kind: EncounterKind;
+  start_date: string;
+  end_date?: string | null;
+  doctor_name?: string | null;
+  hospital?: string | null;
+  reason?: string | null;
+  notes?: string | null;
+  diagnoses?: string[];
+  procedures?: string[];
+  prescriptions?: PrescribedMedicine[];
+  next_visit_date?: string | null;
+  next_visit_notes?: string | null;
+  next_visit_status?: "upcoming" | "completed" | "cancelled" | "overdue";
+  confirmed: boolean;
+  created_at?: string;
+}
+
+export type LabResultFlag = "normal" | "high" | "low" | "critical";
+
+export interface LabResult {
+  id: string;
+  patient_id: string;
+  document_id?: string | null;
+  page_number?: number | null;
+  evidence_text?: string | null;
+  test_name: string;
+  value_num: number;
+  value_text?: string | null;
+  unit: string;
+  ref_range?: string | null;
+  flag?: LabResultFlag;
+  taken_on: string;
+  lab_name?: string | null;
+  confidence?: number;
+  confirmed: boolean;
+  created_at?: string;
+}
+
+export interface FollowUpAppointment {
+  id: string;
+  encounter_id?: string;
+  patient_id: string;
+  doctor_name: string;
+  hospital: string;
+  scheduled_date: string;
+  scheduled_time?: string;
+  reason: string;
+  instructions?: string;
+  status: "upcoming" | "completed" | "cancelled" | "overdue";
+  created_at?: string;
+}
