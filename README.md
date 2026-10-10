@@ -4,6 +4,13 @@
 
 **Live app:** https://medi-care-blue-nine.vercel.app/
 
+## Demo Video
+
+**Watch the demo:** https://drive.google.com/file/d/1q_W5ST0QnxtnHvtXkzMuRZFnRoNEkvf3/view?usp=sharing
+
+> The video is hosted on Google Drive. If it does not play in the browser, **download the video** from the link above and watch it locally.
+
+
 **Try it without setup** (judges):
 
 | Role | Email | Password |
