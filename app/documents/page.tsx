@@ -20,6 +20,10 @@ import {
   Building,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Clock,
+  ArrowRight,
+  ShieldAlert,
   X,
   Lock,
   UploadCloud,
@@ -28,12 +32,36 @@ import {
   Shield,
   Layers,
   Sparkles,
+  Upload,
+  FileCode,
 } from "lucide-react";
-import { MedicalDocument, MedicalDocumentCategory } from "@/lib/types/database";
+import { MedicalDocumentCategory } from "@/lib/types/database";
 import { getLocalSession } from "@/lib/auth";
 
+export interface DashboardDocument {
+  id: string;
+  patient_id?: string;
+  title?: string;
+  file_name: string;
+  file_type: string;
+  file_size_bytes?: number;
+  size_bytes?: number;
+  file_url?: string;
+  storage_path?: string;
+  file_data_url?: string;
+  category?: MedicalDocumentCategory | string;
+  doc_type?: string;
+  doc_date?: string;
+  doctor?: string;
+  hospital?: string;
+  notes?: string;
+  status?: "uploaded" | "extracting" | "needs_review" | "confirmed" | "failed";
+  confidence_score?: number;
+  created_at?: string;
+}
+
 const CATEGORY_MAP: Record<
-  MedicalDocumentCategory,
+  string,
   { label: string; badgeClass: string; icon: any }
 > = {
   xray: {
@@ -56,7 +84,17 @@ const CATEGORY_MAP: Record<
     badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
     icon: FileText,
   },
+  lab_report: {
+    label: "Lab Report",
+    badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    icon: FileText,
+  },
   prescription_pdf: {
+    label: "Prescription",
+    badgeClass: "bg-teal-500/20 text-teal-300 border-teal-500/30",
+    icon: FileText,
+  },
+  prescription: {
     label: "Prescription",
     badgeClass: "bg-teal-500/20 text-teal-300 border-teal-500/30",
     icon: FileText,
@@ -64,7 +102,7 @@ const CATEGORY_MAP: Record<
   discharge_summary: {
     label: "Discharge Summary",
     badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    icon: FileCheck,
+    icon: FileText,
   },
   clinical_photo: {
     label: "Clinical Photo",
@@ -78,16 +116,13 @@ const CATEGORY_MAP: Record<
   },
 };
 
-function FileCheck(props: any) {
-  return <FileText {...props} />;
-}
-
 export default function MedicalDocumentsPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [documents, setDocuments] = useState<MedicalDocument[]>([]);
+  const [documents, setDocuments] = useState<DashboardDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "images" | "pdfs">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "title">("newest");
   const [statusMsg, setStatusMsg] = useState<{
@@ -96,7 +131,7 @@ export default function MedicalDocumentsPage() {
   } | null>(null);
 
   // Lightbox / Inspection Viewer State
-  const [selectedDoc, setSelectedDoc] = useState<MedicalDocument | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<DashboardDocument | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [isInverted, setIsInverted] = useState<boolean>(false);
@@ -169,7 +204,7 @@ export default function MedicalDocumentsPage() {
     setIsInverted(false);
   };
 
-  const handleOpenDoc = (doc: MedicalDocument) => {
+  const handleOpenDoc = (doc: DashboardDocument) => {
     setSelectedDoc(doc);
     setZoomLevel(1);
     setRotation(0);
@@ -202,7 +237,7 @@ export default function MedicalDocumentsPage() {
     }
   };
 
-  // Handle local file selection
+  // Handle local file selection in quick modal
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -211,7 +246,6 @@ export default function MedicalDocumentsPage() {
     setUploadedFileType(file.type);
     setUploadedFileSize(file.size);
 
-    // Default title if empty
     if (!uploadTitle) {
       const cleanName = file.name
         .replace(/\.[^/.]+$/, "")
@@ -219,23 +253,20 @@ export default function MedicalDocumentsPage() {
       setUploadTitle(cleanName);
     }
 
-    // Auto-detect category
     if (file.type === "application/pdf") {
       setUploadCategory("lab_pdf");
     } else if (file.type.startsWith("image/")) {
+      const lower = file.name.toLowerCase();
       if (
-        file.name.toLowerCase().includes("xray") ||
-        file.name.toLowerCase().includes("x-ray") ||
-        file.name.toLowerCase().includes("chest") ||
-        file.name.toLowerCase().includes("radiograph")
+        lower.includes("xray") ||
+        lower.includes("x-ray") ||
+        lower.includes("chest") ||
+        lower.includes("radiograph")
       ) {
         setUploadCategory("xray");
-      } else if (
-        file.name.toLowerCase().includes("mri") ||
-        file.name.toLowerCase().includes("ct")
-      ) {
+      } else if (lower.includes("mri") || lower.includes("ct")) {
         setUploadCategory("mri_ct");
-      } else if (file.name.toLowerCase().includes("ultrasound")) {
+      } else if (lower.includes("ultrasound")) {
         setUploadCategory("ultrasound");
       } else {
         setUploadCategory("clinical_photo");
@@ -337,7 +368,6 @@ export default function MedicalDocumentsPage() {
           type: "success",
           text: `"${uploadTitle}" securely archived in your vault!`,
         });
-        // reset form
         setUploadTitle("");
         setUploadDoctor("");
         setUploadHospital("");
@@ -357,14 +387,14 @@ export default function MedicalDocumentsPage() {
     }
   };
 
-  // Formatting helpers
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return "1.2 MB";
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "N/A";
     try {
       const d = new Date(dateStr);
       return d.toLocaleDateString("en-US", {
@@ -377,35 +407,66 @@ export default function MedicalDocumentsPage() {
     }
   };
 
+  const getDocTitle = (doc: DashboardDocument) =>
+    doc.title || doc.file_name;
+
+  const getDocCategory = (doc: DashboardDocument): string => {
+    if (doc.category) return doc.category;
+    if (doc.doc_type) return doc.doc_type;
+    return "other";
+  };
+
+  const getDocUrl = (doc: DashboardDocument): string =>
+    doc.file_url || doc.file_data_url || doc.storage_path || "";
+
+  const isDocPdf = (doc: DashboardDocument) => {
+    const fType = (doc.file_type || "").toLowerCase();
+    const fName = (doc.file_name || "").toLowerCase();
+    const cat = getDocCategory(doc).toLowerCase();
+    return (
+      fType.includes("pdf") ||
+      fName.endsWith(".pdf") ||
+      cat.includes("pdf")
+    );
+  };
+
   // Filtered & Sorted Documents
   const filteredDocuments = documents
     .filter((doc) => {
       // Category filter
-      if (categoryFilter !== "all" && doc.category !== categoryFilter) {
+      const cat = getDocCategory(doc);
+      if (categoryFilter !== "all") {
+        if (categoryFilter === "lab_pdf" && !cat.includes("lab")) return false;
+        if (categoryFilter === "prescription_pdf" && !cat.includes("prescription")) return false;
+        if (categoryFilter !== "lab_pdf" && categoryFilter !== "prescription_pdf" && cat !== categoryFilter) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (statusFilter !== "all" && doc.status !== statusFilter) {
         return false;
       }
+
       // Type filter
-      const isPdf =
-        doc.file_type === "application/pdf" ||
-        doc.file_name.toLowerCase().endsWith(".pdf") ||
-        doc.category.includes("pdf");
+      const isPdf = isDocPdf(doc);
       if (typeFilter === "images" && isPdf) return false;
       if (typeFilter === "pdfs" && !isPdf) return false;
 
       // Search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchTitle = doc.title.toLowerCase().includes(query);
-        const matchDoctor = (doc.doctor || "").toLowerCase().includes(query);
-        const matchHospital = (doc.hospital || "").toLowerCase().includes(query);
-        const matchNotes = (doc.notes || "").toLowerCase().includes(query);
-        const matchCategory = doc.category.toLowerCase().includes(query);
+        const title = (getDocTitle(doc) || "").toLowerCase();
+        const docName = (doc.doctor || "").toLowerCase();
+        const hospName = (doc.hospital || "").toLowerCase();
+        const notes = (doc.notes || "").toLowerCase();
+        const filename = (doc.file_name || "").toLowerCase();
         if (
-          !matchTitle &&
-          !matchDoctor &&
-          !matchHospital &&
-          !matchNotes &&
-          !matchCategory
+          !title.includes(query) &&
+          !docName.includes(query) &&
+          !hospName.includes(query) &&
+          !notes.includes(query) &&
+          !filename.includes(query)
         ) {
           return false;
         }
@@ -413,42 +474,22 @@ export default function MedicalDocumentsPage() {
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === "newest") {
-        return (
-          new Date(b.doc_date).getTime() - new Date(a.doc_date).getTime()
-        );
-      } else if (sortBy === "oldest") {
-        return (
-          new Date(a.doc_date).getTime() - new Date(b.doc_date).getTime()
-        );
-      } else {
-        return a.title.localeCompare(b.title);
-      }
+      const dateA = a.doc_date ? new Date(a.doc_date).getTime() : 0;
+      const dateB = b.doc_date ? new Date(b.doc_date).getTime() : 0;
+      if (sortBy === "newest") return dateB - dateA;
+      if (sortBy === "oldest") return dateA - dateB;
+      return getDocTitle(a).localeCompare(getDocTitle(b));
     });
 
   // Vault Stats
-  const imageCount = documents.filter(
-    (d) =>
-      d.category === "xray" ||
-      d.category === "mri_ct" ||
-      d.category === "ultrasound" ||
-      d.category === "clinical_photo" ||
-      d.file_type.startsWith("image/")
-  ).length;
-
-  const pdfCount = documents.filter(
-    (d) =>
-      d.category.includes("pdf") ||
-      d.category === "discharge_summary" ||
-      d.file_type === "application/pdf"
-  ).length;
-
+  const imageCount = documents.filter((d) => !isDocPdf(d)).length;
+  const pdfCount = documents.filter((d) => isDocPdf(d)).length;
+  const needsReviewCount = documents.filter((d) => d.status === "needs_review").length;
   const totalBytes = documents.reduce(
-    (acc, cur) => acc + (cur.file_size_bytes || 1200000),
+    (acc, cur) => acc + (cur.file_size_bytes || cur.size_bytes || 1200000),
     0
   );
 
-  // Unauthenticated Barrier
   if (authenticated === false) {
     return (
       <div className="max-w-md mx-auto py-24 px-4 text-center space-y-5">
@@ -457,12 +498,11 @@ export default function MedicalDocumentsPage() {
         </div>
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-white">
-            Sign In to Access Medical Files & Scans
+            Sign In to Access Medical Files & Records
           </h2>
           <p className="text-xs text-emerald-300/70">
-            Your radiographic X-rays, MRI scans, sonograms, and lab PDFs are
-            stored securely in your private MediCare vault. Sign in to view and
-            inspect your medical history.
+            Your radiographic X-rays, MRI scans, prescriptions, and lab reports are
+            stored securely in your private MediCare vault. Sign in to view and inspect.
           </p>
         </div>
         <Link
@@ -480,7 +520,7 @@ export default function MedicalDocumentsPage() {
       <div className="max-w-5xl mx-auto py-20 px-4 text-center">
         <div className="inline-block w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-emerald-300/80 text-sm">
-          Loading your medical scans, X-rays & PDFs...
+          Loading your medical records, scans & reports...
         </p>
       </div>
     );
@@ -496,37 +536,43 @@ export default function MedicalDocumentsPage() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-500/30">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
-              Patient Diagnostic Vault & Archival Viewer
+              Patient Diagnostic Vault & AI Extraction Engine
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Medical Scans, X-Rays & PDFs
+              Medical Scans, Prescriptions & Reports
             </h1>
             <p className="text-xs sm:text-sm text-emerald-200/80 max-w-2xl leading-relaxed">
-              Store, inspect, and organize all your radiology photos (X-rays,
-              MRIs, CT scans, ultrasounds) and diagnostic PDF reports in one
-              permanent digital vault. Access or download anytime you visit a doctor.
+              Store, inspect, and extract medical records using multi-modal AI. Upload prescription slips,
+              pill packages, lab PDFs, and radiology scans with side-by-side human-in-the-loop verification.
             </p>
             <div className="flex items-center gap-2 pt-1 text-[11px] text-emerald-400/80 font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Store & View Only — Historical Reference (No Automated AI Diagnostics)
+              AI Vision Extraction Active • Human-in-the-Loop Confirmation Required
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/documents/upload"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-[#071410] font-bold text-xs transition-all shadow-lg shadow-emerald-400/20 active:scale-95"
+            >
+              <Sparkles className="w-4 h-4 stroke-[2.5]" />
+              Upload & AI Extract
+            </Link>
             <button
               type="button"
               onClick={() => setShowUploadModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-[#071410] font-bold text-xs transition-all shadow-lg shadow-emerald-400/20 active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#092219] hover:bg-[#0d3024] text-emerald-300 border border-emerald-500/30 font-semibold text-xs transition-colors"
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              Upload Scan or PDF
+              <Plus className="w-4 h-4" />
+              Quick Vault Store
             </button>
             <Link
               href="/consultations"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#092219] hover:bg-[#0d3024] text-emerald-300 border border-emerald-500/30 font-semibold text-xs transition-colors"
             >
               <Stethoscope className="w-3.5 h-3.5 text-emerald-400" />
-              View Doctor Notes
+              Doctor Notes
             </Link>
           </div>
         </div>
@@ -561,39 +607,39 @@ export default function MedicalDocumentsPage() {
           </div>
           <p className="text-2xl font-black text-white">{documents.length}</p>
           <p className="text-[10px] text-emerald-300/60">
-            Archived diagnostic files
+            Archived medical documents
           </p>
         </div>
 
         <div className="p-4 rounded-xl bg-[#091b15] border border-emerald-900/40 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-amber-400">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300/70">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300/70">
+              Needs AI Review
+            </span>
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <p className="text-2xl font-black text-amber-300">{needsReviewCount}</p>
+          <p className="text-[10px] text-amber-300/70">
+            Awaiting user confirmation
+          </p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-[#091b15] border border-emerald-900/40 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-cyan-400">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-cyan-300/70">
               Scans & Photos
             </span>
             <ImageIcon className="w-4 h-4" />
           </div>
           <p className="text-2xl font-black text-white">{imageCount}</p>
           <p className="text-[10px] text-emerald-300/60">
-            X-rays, MRIs & clinical photos
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl bg-[#091b15] border border-emerald-900/40 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-cyan-400">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300/70">
-              Clinical PDFs
-            </span>
-            <File className="w-4 h-4" />
-          </div>
-          <p className="text-2xl font-black text-white">{pdfCount}</p>
-          <p className="text-[10px] text-emerald-300/60">
-            Lab reports & summaries
+            X-rays, pills & clinical photos
           </p>
         </div>
 
         <div className="p-4 rounded-xl bg-[#091b15] border border-emerald-900/40 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-teal-400">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300/70">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-teal-300/70">
               Vault Storage
             </span>
             <UploadCloud className="w-4 h-4" />
@@ -602,7 +648,7 @@ export default function MedicalDocumentsPage() {
             {formatFileSize(totalBytes)}
           </p>
           <p className="text-[10px] text-emerald-300/60">
-            Encrypted client storage
+            {pdfCount} PDFs / Reports cached
           </p>
         </div>
       </div>
@@ -615,7 +661,7 @@ export default function MedicalDocumentsPage() {
             <Search className="w-4 h-4 text-emerald-400/60 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by scan title, doctor name, hospital, or clinical notes..."
+              placeholder="Search by title, filename, doctor, hospital, or clinical notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#05110d] border border-emerald-900/60 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-emerald-400/40 focus:outline-none focus:border-emerald-400 transition-colors"
@@ -631,8 +677,9 @@ export default function MedicalDocumentsPage() {
             )}
           </div>
 
-          {/* Quick Format & Sort Filters */}
-          <div className="flex items-center gap-2">
+          {/* Quick Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Format filter */}
             <div className="flex bg-[#05110d] p-1 rounded-xl border border-emerald-900/60 text-xs">
               <button
                 type="button"
@@ -669,13 +716,27 @@ export default function MedicalDocumentsPage() {
               </button>
             </div>
 
+            {/* Status filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-[#05110d] border border-emerald-900/60 rounded-xl px-3 py-2 text-xs text-emerald-200 focus:outline-none focus:border-emerald-400"
+            >
+              <option value="all">All Statuses</option>
+              <option value="needs_review">Needs Review</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="extracting">Extracting</option>
+              <option value="uploaded">Uploaded</option>
+            </select>
+
+            {/* Sort dropdown */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               className="bg-[#05110d] border border-emerald-900/60 rounded-xl px-3 py-2 text-xs text-emerald-200 focus:outline-none focus:border-emerald-400"
             >
-              <option value="newest">Newest Scan Date</option>
-              <option value="oldest">Oldest Scan Date</option>
+              <option value="newest">Newest Date</option>
+              <option value="oldest">Oldest Date</option>
               <option value="title">Title (A-Z)</option>
             </select>
           </div>
@@ -706,8 +767,7 @@ export default function MedicalDocumentsPage() {
                 : "bg-[#05110d] text-amber-300/80 hover:bg-amber-500/10 border border-amber-900/40"
             }`}
           >
-            X-Rays (
-            {documents.filter((d) => d.category === "xray").length})
+            X-Rays ({documents.filter((d) => getDocCategory(d) === "xray").length})
           </button>
           <button
             type="button"
@@ -718,20 +778,18 @@ export default function MedicalDocumentsPage() {
                 : "bg-[#05110d] text-indigo-300/80 hover:bg-indigo-500/10 border border-indigo-900/40"
             }`}
           >
-            MRI & CT (
-            {documents.filter((d) => d.category === "mri_ct").length})
+            MRI & CT ({documents.filter((d) => getDocCategory(d) === "mri_ct").length})
           </button>
           <button
             type="button"
-            onClick={() => setCategoryFilter("ultrasound")}
+            onClick={() => setCategoryFilter("prescription_pdf")}
             className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all ${
-              categoryFilter === "ultrasound"
-                ? "bg-cyan-400 text-[#071410]"
-                : "bg-[#05110d] text-cyan-300/80 hover:bg-cyan-500/10 border border-cyan-900/40"
+              categoryFilter === "prescription_pdf"
+                ? "bg-teal-400 text-[#071410]"
+                : "bg-[#05110d] text-teal-300/80 hover:bg-teal-500/10 border border-teal-900/40"
             }`}
           >
-            Ultrasounds (
-            {documents.filter((d) => d.category === "ultrasound").length})
+            Prescriptions ({documents.filter((d) => getDocCategory(d).includes("prescription")).length})
           </button>
           <button
             type="button"
@@ -742,8 +800,7 @@ export default function MedicalDocumentsPage() {
                 : "bg-[#05110d] text-emerald-300/80 hover:bg-emerald-500/10 border border-emerald-900/40"
             }`}
           >
-            Lab PDFs (
-            {documents.filter((d) => d.category === "lab_pdf").length})
+            Lab Reports ({documents.filter((d) => getDocCategory(d).includes("lab")).length})
           </button>
           <button
             type="button"
@@ -754,8 +811,7 @@ export default function MedicalDocumentsPage() {
                 : "bg-[#05110d] text-blue-300/80 hover:bg-blue-500/10 border border-blue-900/40"
             }`}
           >
-            Discharge Summaries (
-            {documents.filter((d) => d.category === "discharge_summary").length})
+            Discharge Summaries ({documents.filter((d) => getDocCategory(d) === "discharge_summary").length})
           </button>
         </div>
       </div>
@@ -772,28 +828,39 @@ export default function MedicalDocumentsPage() {
             </h3>
             <p className="text-xs text-emerald-300/70 max-w-md mx-auto">
               {searchQuery
-                ? `No scans found matching "${searchQuery}". Try clearing search filters or uploading a new scan.`
-                : "Your medical vault is empty in this category. Upload your X-ray photos or PDF diagnostic reports to begin."}
+                ? `No records found matching "${searchQuery}". Try clearing search filters or uploading a new scan.`
+                : "Your medical vault is empty. Upload your prescription slip, lab report, or X-ray scan to begin."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowUploadModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-400 text-[#071410] font-bold text-xs hover:bg-emerald-300 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Upload Document Now
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/documents/upload"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-400 text-[#071410] font-bold text-xs hover:bg-emerald-300 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" /> Upload & AI Extract
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowUploadModal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#05110d] text-emerald-300 border border-emerald-500/30 font-semibold text-xs hover:bg-emerald-500/10 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Quick Vault Store
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredDocuments.map((doc) => {
-            const catInfo =
-              CATEGORY_MAP[doc.category] || CATEGORY_MAP.other;
+            const rawCat = getDocCategory(doc);
+            const catInfo = CATEGORY_MAP[rawCat] || CATEGORY_MAP.other;
             const CatIcon = catInfo.icon;
-            const isPdf =
-              doc.file_type === "application/pdf" ||
-              doc.file_name.toLowerCase().endsWith(".pdf") ||
-              doc.category.includes("pdf");
+            const isPdf = isDocPdf(doc);
+            const docUrl = getDocUrl(doc);
+            const title = getDocTitle(doc);
+            const isLowConfidence =
+              doc.confidence_score !== undefined &&
+              doc.confidence_score > 0 &&
+              doc.confidence_score < 80;
 
             return (
               <div
@@ -814,19 +881,25 @@ export default function MedicalDocumentsPage() {
                         PDF DOCUMENT
                       </span>
                       <span className="text-[10px] text-emerald-400/60 font-mono">
-                        {formatFileSize(doc.file_size_bytes)}
+                        {formatFileSize(doc.file_size_bytes || doc.size_bytes)}
                       </span>
                     </div>
-                  ) : (
-                    // Image / Scan Thumbnail
+                  ) : docUrl ? (
                     <div className="w-full h-full relative">
                       <img
-                        src={doc.file_url}
-                        alt={doc.title}
+                        src={docUrl}
+                        alt={title}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#040c09] via-transparent to-transparent opacity-60" />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 p-6 text-center text-slate-500">
+                      <FileCode className="w-8 h-8 text-emerald-400/60" />
+                      <span className="text-xs font-mono text-emerald-300/70">
+                        {doc.file_name}
+                      </span>
                     </div>
                   )}
 
@@ -834,7 +907,7 @@ export default function MedicalDocumentsPage() {
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <span className="px-3.5 py-1.5 rounded-full bg-emerald-400 text-[#071410] font-bold text-xs flex items-center gap-1.5 shadow-lg transform -translate-y-1 group-hover:translate-y-0 transition-all">
                       <Eye className="w-3.5 h-3.5" />
-                      {isPdf ? "Preview PDF" : "Inspect Scan"}
+                      {isPdf ? "Preview Document" : "Inspect Record"}
                     </span>
                   </div>
 
@@ -859,13 +932,55 @@ export default function MedicalDocumentsPage() {
                 {/* Card Content */}
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                   <div className="space-y-2">
-                    <h3
-                      onClick={() => handleOpenDoc(doc)}
-                      className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors line-clamp-1 cursor-pointer"
-                      title={doc.title}
-                    >
-                      {doc.title}
-                    </h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3
+                        onClick={() => handleOpenDoc(doc)}
+                        className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors line-clamp-1 cursor-pointer flex-1"
+                        title={title}
+                      >
+                        {title}
+                      </h3>
+                      {doc.confidence_score !== undefined && doc.confidence_score > 0 && (
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium border shrink-0 ${
+                            isLowConfidence
+                              ? "bg-amber-950/40 text-amber-300 border-amber-600/50"
+                              : "bg-emerald-950/40 text-emerald-300 border-emerald-600/50"
+                          }`}
+                        >
+                          {doc.confidence_score}% Conf
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Status Badge */}
+                    {doc.status && (
+                      <div className="flex items-center gap-2">
+                        {doc.status === "needs_review" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <AlertTriangle className="w-3 h-3" />
+                            Needs Review
+                          </span>
+                        )}
+                        {doc.status === "confirmed" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Confirmed
+                          </span>
+                        )}
+                        {doc.status === "extracting" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30 animate-pulse">
+                            <Clock className="w-3 h-3" />
+                            Extracting...
+                          </span>
+                        )}
+                        {doc.status === "uploaded" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                            Uploaded
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Metadata details */}
                     <div className="space-y-1 text-[11px] text-emerald-300/80">
@@ -892,35 +1007,61 @@ export default function MedicalDocumentsPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="pt-2 border-t border-emerald-900/40 flex items-center justify-between text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDoc(doc)}
-                      className="inline-flex items-center gap-1.5 font-bold text-emerald-300 hover:text-emerald-200 transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Inspect & View
-                    </button>
+                  <div className="pt-2 border-t border-emerald-900/40 flex flex-col gap-2 text-xs">
+                    {/* Primary CTA: Review or Inspect */}
+                    <div className="flex items-center justify-between gap-2">
+                      {doc.status === "needs_review" ? (
+                        <Link
+                          href={`/documents/${doc.id}/review`}
+                          className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Review Extraction
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDoc(doc)}
+                          className="inline-flex items-center gap-1.5 font-bold text-emerald-300 hover:text-emerald-200 transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          Inspect & View
+                        </button>
+                      )}
 
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={doc.file_url}
-                        download={doc.file_name}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1.5 rounded-lg text-emerald-400/80 hover:text-white hover:bg-emerald-500/10 transition-colors"
-                        title="Download file"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(doc.id, doc.title)}
-                        className="p-1.5 rounded-lg text-emerald-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Delete from archive"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {doc.status === "confirmed" && (
+                          <Link
+                            href={`/documents/${doc.id}/review`}
+                            className="p-1.5 rounded-lg text-emerald-400/80 hover:text-white hover:bg-emerald-500/10 transition-colors text-[11px] font-semibold flex items-center gap-1"
+                            title="View AI extracted items"
+                          >
+                            <FileCode className="w-3.5 h-3.5" />
+                            Data
+                          </Link>
+                        )}
+                        {docUrl && (
+                          <a
+                            href={docUrl}
+                            download={doc.file_name}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg text-emerald-400/80 hover:text-white hover:bg-emerald-500/10 transition-colors"
+                            title="Download file"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(doc.id, title)}
+                          className="p-1.5 rounded-lg text-emerald-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          title="Delete from archive"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -929,6 +1070,14 @@ export default function MedicalDocumentsPage() {
           })}
         </div>
       )}
+
+      {/* Clinical Disclaimer Notice */}
+      <div className="flex items-start gap-3 bg-slate-900/30 border border-slate-800/80 rounded-xl p-4 text-xs text-slate-400">
+        <ShieldAlert className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+        <p>
+          <strong className="text-slate-300">Clinical Safety Notice:</strong> MediCare is a patient records app, not insurance. Demo with simulated data. Multi-modal AI extraction provides decision support only and does not constitute medical diagnosis. Extracted records require human-in-the-loop confirmation before being committed to your longitudinal timeline.
+        </p>
+      </div>
 
       {/* =========================================================================
           LIGHTBOX MEDICAL INSPECTION VIEWER MODAL
@@ -941,17 +1090,17 @@ export default function MedicalDocumentsPage() {
               <div className="flex items-center gap-3 truncate">
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                    (CATEGORY_MAP[selectedDoc.category] || CATEGORY_MAP.other)
+                    (CATEGORY_MAP[getDocCategory(selectedDoc)] || CATEGORY_MAP.other)
                       .badgeClass
                   }`}
                 >
                   {
-                    (CATEGORY_MAP[selectedDoc.category] || CATEGORY_MAP.other)
+                    (CATEGORY_MAP[getDocCategory(selectedDoc)] || CATEGORY_MAP.other)
                       .label
                   }
                 </span>
                 <h2 className="text-sm sm:text-base font-bold text-white truncate">
-                  {selectedDoc.title}
+                  {getDocTitle(selectedDoc)}
                 </h2>
                 <span className="hidden sm:inline-block text-[11px] text-emerald-400/60 font-mono">
                   ({formatDate(selectedDoc.doc_date)})
@@ -969,16 +1118,12 @@ export default function MedicalDocumentsPage() {
               </button>
             </div>
 
-            {/* Viewer Body: Center Screen & Details Sidebar */}
+            {/* Viewer Body */}
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
               {/* Media Display Area */}
               <div className="flex-1 bg-[#020705] relative flex flex-col overflow-hidden">
                 {/* Control Toolbar (Only for Image/Scan) */}
-                {!(
-                  selectedDoc.file_type === "application/pdf" ||
-                  selectedDoc.file_name.toLowerCase().endsWith(".pdf") ||
-                  selectedDoc.category.includes("pdf")
-                ) && (
+                {!isDocPdf(selectedDoc) && getDocUrl(selectedDoc) && (
                   <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-[#091f16]/90 border border-emerald-500/30 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg">
                     <button
                       type="button"
@@ -1044,23 +1189,19 @@ export default function MedicalDocumentsPage() {
 
                 {/* Media Presentation View */}
                 <div className="flex-1 overflow-auto flex items-center justify-center p-4 select-none">
-                  {selectedDoc.file_type === "application/pdf" ||
-                  selectedDoc.file_name.toLowerCase().endsWith(".pdf") ||
-                  selectedDoc.category.includes("pdf") ? (
-                    // Embedded PDF Viewer
+                  {isDocPdf(selectedDoc) && getDocUrl(selectedDoc) ? (
                     <div className="w-full h-full flex flex-col items-center justify-center">
                       <iframe
-                        src={selectedDoc.file_url}
+                        src={getDocUrl(selectedDoc)}
                         className="w-full h-full rounded-xl border border-emerald-900/60 bg-white"
-                        title={selectedDoc.title}
+                        title={getDocTitle(selectedDoc)}
                       />
                     </div>
-                  ) : (
-                    // High-Res Image / Scan with interactive transforms
+                  ) : getDocUrl(selectedDoc) ? (
                     <div className="transition-transform duration-150 flex items-center justify-center">
                       <img
-                        src={selectedDoc.file_url}
-                        alt={selectedDoc.title}
+                        src={getDocUrl(selectedDoc)}
+                        alt={getDocTitle(selectedDoc)}
                         style={{
                           transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
                           filter: isInverted
@@ -1070,11 +1211,17 @@ export default function MedicalDocumentsPage() {
                         className="max-h-[75vh] max-w-[85vw] object-contain rounded-lg shadow-2xl transition-all"
                       />
                     </div>
+                  ) : (
+                    <div className="text-center p-8 text-emerald-400/70">
+                      <FileCode className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm font-semibold text-white">{getDocTitle(selectedDoc)}</p>
+                      <p className="text-xs text-emerald-300/60 mt-1">Stored record metadata available</p>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Sidebar with Medical Findings & Details */}
+              {/* Sidebar with Findings & Details */}
               <div className="w-full lg:w-80 bg-[#071912] border-t lg:border-t-0 lg:border-l border-emerald-900/40 p-5 flex flex-col justify-between overflow-y-auto space-y-4">
                 <div className="space-y-4">
                   <div>
@@ -1082,14 +1229,14 @@ export default function MedicalDocumentsPage() {
                       Record Details
                     </span>
                     <h3 className="text-base font-bold text-white mt-1">
-                      {selectedDoc.title}
+                      {getDocTitle(selectedDoc)}
                     </h3>
                   </div>
 
                   <div className="space-y-2.5 text-xs">
                     <div className="p-2.5 rounded-xl bg-[#04100c] border border-emerald-900/40 space-y-1">
                       <span className="text-[10px] text-emerald-400/60 block font-mono">
-                        DATE OF EXAMINATION
+                        DATE OF EXAMINATION / RECORD
                       </span>
                       <div className="flex items-center gap-1.5 text-white font-semibold">
                         <Calendar className="w-3.5 h-3.5 text-emerald-400" />
@@ -1100,7 +1247,7 @@ export default function MedicalDocumentsPage() {
                     {selectedDoc.doctor && (
                       <div className="p-2.5 rounded-xl bg-[#04100c] border border-emerald-900/40 space-y-1">
                         <span className="text-[10px] text-emerald-400/60 block font-mono">
-                          PHYSICIAN / RADIOLOGIST
+                          PHYSICIAN / PROVIDER
                         </span>
                         <div className="flex items-center gap-1.5 text-white font-semibold">
                           <Stethoscope className="w-3.5 h-3.5 text-emerald-400" />
@@ -1122,7 +1269,7 @@ export default function MedicalDocumentsPage() {
                     )}
                   </div>
 
-                  {/* Doctor Notes & Findings */}
+                  {/* Notes & Findings */}
                   {selectedDoc.notes && (
                     <div className="space-y-1.5">
                       <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400/70 block">
@@ -1134,36 +1281,47 @@ export default function MedicalDocumentsPage() {
                     </div>
                   )}
 
+                  {/* Review CTA link if available */}
+                  <Link
+                    href={`/documents/${selectedDoc.id}/review`}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-500/25 transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Inspect AI Structured Data
+                  </Link>
+
                   {/* Safety & Archival Notice */}
                   <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300/80 leading-relaxed space-y-1">
-                    <span className="font-bold text-emerald-300 block flex items-center gap-1">
+                    <span className="font-bold text-emerald-300 flex items-center gap-1">
                       <Shield className="w-3.5 h-3.5" /> Archival Record
                     </span>
                     Stored for patient record retention and doctor consultation.
-                    Clinical interpretations must be conducted by certified
-                    physicians.
                   </div>
                 </div>
 
                 {/* Bottom Actions */}
                 <div className="pt-4 border-t border-emerald-900/40 space-y-2">
-                  <a
-                    href={selectedDoc.file_url}
-                    download={selectedDoc.file_name}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-[#071410] font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-400/10"
-                  >
-                    <Download className="w-4 h-4" /> Download Original Record
-                  </a>
-                  <a
-                    href={selectedDoc.file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2 px-4 rounded-xl bg-[#092219] hover:bg-[#0c2f22] text-emerald-300 border border-emerald-500/20 font-semibold text-xs transition-colors flex items-center justify-center gap-2"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
-                  </a>
+                  {getDocUrl(selectedDoc) && (
+                    <>
+                      <a
+                        href={getDocUrl(selectedDoc)}
+                        download={selectedDoc.file_name}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-2.5 px-4 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-[#071410] font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-400/10"
+                      >
+                        <Download className="w-4 h-4" /> Download Original Record
+                      </a>
+                      <a
+                        href={getDocUrl(selectedDoc)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-2 px-4 rounded-xl bg-[#092219] hover:bg-[#0c2f22] text-emerald-300 border border-emerald-500/20 font-semibold text-xs transition-colors flex items-center justify-center gap-2"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+                      </a>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
