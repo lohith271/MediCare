@@ -456,7 +456,11 @@ export default function DocumentReviewPage({ params }: PageProps) {
                   Clinical Abstract
                 </span>
                 <h2 className="text-lg font-bold text-white capitalize">
-                  {formData?.document_type ? formData.document_type.replace("_", " ") : "Medical Record"}
+                  {formData && "clinic_name" in formData && (formData.clinic_name?.toLowerCase().includes("pill") || formData.clinic_name?.toLowerCase().includes("packaging"))
+                    ? "Medicine Packaging / Pill Scan"
+                    : formData?.document_type
+                    ? formData.document_type.replace("_", " ")
+                    : "Medical Record"}
                 </h2>
               </div>
 

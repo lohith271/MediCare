@@ -105,17 +105,27 @@ export type MedicalDataExtract = z.infer<typeof MedicalDataExtractSchema>;
  */
 
 const SYSTEM_PROMPT = `You are an expert clinical data abstractor for MediCare, a patient health-records system.
-Your job is to examine uploaded medical document scans (prescriptions, lab tests, discharge summaries, or clinical photos).
+Your job is to examine uploaded medical document scans (prescriptions, lab tests, discharge summaries, or clinical photos), AS WELL AS photos of physical medicines (blister strips, tablet/capsule boxes, pill bottles, syrup containers, or medication packaging).
 Rules:
-1. Act as a precision clinical abstractor. Carefully transcribe messy handwriting and low-resolution clinical notes.
-2. NEVER guess, speculate, or extrapolate unstated medical data. If a field or instruction is illegible or not present, omit it.
-3. Every single extracted entity (medication, lab analyte, diagnosis, allergy) MUST include:
-   - "evidence_text": the exact character sequence or literal text snippet from the document where the item was found.
+1. Act as a precision clinical abstractor. Carefully transcribe messy handwriting, packaging labels, and clinical notes.
+2. If the user uploads a photo of physical medicines, tablet strips, blister packs, pill bottles, or medicine boxes:
+   - Classify this under "document_type": "prescription".
+   - Extract every visible medicine on the strip/bottle/box into the "medications" array.
+   - "name": The commercial/trade name printed on the packaging (e.g. "Crocin 650", "Dolo 650", "Augmentin 625", "Lipitor 20mg").
+   - "generic_name": The active pharmaceutical ingredient / molecule (e.g. "Paracetamol", "Amoxicillin and Potassium Clavulanate", "Atorvastatin").
+   - "dosage": Strength printed on packaging (e.g. "650 mg", "500 mg", "10 ml").
+   - "frequency": "As directed" or any visible dosage instructions on packaging.
+   - "route": "oral" for tablets, capsules, syrups; "topical" for creams/ointments.
+   - "clinic_name": "Physical Medicine / Pill Packaging Scan".
+   - "evidence_text": Exact text or manufacturer details seen on the packaging.
+3. NEVER guess, speculate, or extrapolate unstated medical data. If a field is illegible or not present, omit or use safe defaults.
+4. Every single extracted entity (medication, lab analyte, diagnosis, allergy) MUST include:
+   - "evidence_text": the exact character sequence or literal text snippet from the document or packaging label where the item was found.
    - "confidence": a decimal score (0.0 to 1.0) indicating visual/textual clarity.
      * Use < 0.7 for ambiguous handwriting, faded ink, or truncated text to trigger human review.
-     * Use >= 0.85 for clear typed or distinct handwritten entries.
-4. Calculate an overall "confidence_score" between 1 and 100 for the entire document based on scan clarity and completeness.
-5. If the document is not a medical record, is completely unreadable, or corrupted, set "document_type" to "other".`;
+     * Use >= 0.85 for clear typed or distinct printed packaging entries.
+5. Calculate an overall "confidence_score" between 1 and 100 for the entire document based on scan clarity and completeness.
+6. If the document is not a medical record or medicine, is completely unreadable, or corrupted, set "document_type" to "other".`;
 
 export async function extractMedicalData(
   fileBuffer: Buffer,
@@ -151,14 +161,15 @@ export async function extractMedicalData(
                 },
               },
               {
-                text: `You are an expert clinical abstractor. Carefully read this medical document scan/image and extract the clinical data.
+                text: `You are an expert clinical abstractor. Carefully read this medical document scan or photo and extract the clinical data.
+IMPORTANT: If the image is a photo of physical medicines, blister packs, pill bottles, syrup containers, or tablet strips, classify as "prescription". Extract every medicine detected into the "medications" array with its brand name, active molecule (generic_name), dosage/strength, and label evidence.
 Return ONLY a valid JSON object matching one of these discriminated union types:
-1. Prescription:
+1. Prescription (or Physical Medicine Packaging Photo):
 {
   "document_type": "prescription",
   "confidence_score": 1-100,
   "doctor_name": string (optional),
-  "clinic_name": string (optional),
+  "clinic_name": string (optional, e.g. "Physical Medicine Scan"),
   "document_date": string (optional),
   "medications": [
     {
@@ -382,6 +393,31 @@ function simulatedClinicalExtraction(buffer: Buffer, mimeType: string): MedicalD
           instructions: "Monitor BP and electrolytes",
           evidence_text: "Lasix 40mg q.a.m. x14d [handwritten smudged ink]",
           confidence: 0.62, // Trigger < 0.7 review highlight
+        },
+      ],
+    };
+  }
+
+  // Check if simulated pill or medicine strip photo
+  const bufferStr = buffer.toString("utf8");
+  if (bufferStr.includes("Dolo") || bufferStr.includes("Pill") || bufferStr.includes("Medicine")) {
+    return {
+      document_type: "prescription",
+      confidence_score: 94,
+      doctor_name: "Over-the-Counter / Retail Pharmacy",
+      clinic_name: "Physical Medicine / Pill Packaging Scan",
+      document_date: new Date().toISOString().slice(0, 10),
+      medications: [
+        {
+          name: "Dolo-650",
+          generic_name: "paracetamol",
+          dosage: "650 mg",
+          frequency: "As directed (Every 6 hours as needed)",
+          route: "oral",
+          duration: "5 days",
+          instructions: "Take with a glass of water after food",
+          evidence_text: "Blister pack label: Dolo-650 Paracetamol Tablets IP 650mg, Micro Labs Limited",
+          confidence: 0.96,
         },
       ],
     };

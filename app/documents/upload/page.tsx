@@ -13,6 +13,7 @@ import {
   FileImage,
   Info,
   ShieldCheck,
+  Pill,
 } from "lucide-react";
 
 export default function DocumentUploadPage() {
@@ -139,10 +140,10 @@ export default function DocumentUploadPage() {
   }
 
   // Helper to load sample files for quick demonstration
-  async function loadSampleDocument(type: "pdf" | "jpg") {
+  async function loadSampleDocument(type: "pdf" | "jpg" | "pill") {
     setIsProcessing(true);
     setErrorMsg(null);
-    setProcessingStage(`Preparing simulated sample ${type.toUpperCase()} record...`);
+    setProcessingStage(`Preparing simulated sample ${type === "pill" ? "Medicine Strip Photo" : type.toUpperCase()} record...`);
 
     try {
       // Generate a valid minimal PDF or JPG byte stream
@@ -153,8 +154,22 @@ export default function DocumentUploadPage() {
         const dummyPdf = "%PDF-1.4\n1 0 obj\n<< /Title (Metformin Prescription) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF";
         blob = new Blob([dummyPdf], { type: "application/pdf" });
         filename = "Sample_Prescription_Cardiology.pdf";
-      } else {
+      } else if (type === "pill") {
         // Minimal valid JPEG binary buffer
+        const jpegBytes = new Uint8Array([
+          0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
+          0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
+          0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0a, 0x0c, 0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12,
+          0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d, 0x1a, 0x1c, 0x1c, 0x20, 0x24, 0x2e, 0x27, 0x20,
+          0x22, 0x2c, 0x23, 0x1c, 0x1c, 0x28, 0x37, 0x29, 0x2c, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1f, 0x27,
+          0x39, 0x3d, 0x38, 0x32, 0x3c, 0x2e, 0x33, 0x34, 0x32, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01,
+          0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xda, 0x00, 0x08, 0x01,
+          0x01, 0x00, 0x00, 0x3f, 0x00, 0x37, 0xff, 0xd9
+        ]);
+        blob = new Blob([jpegBytes], { type: "image/jpeg" });
+        filename = "Sample_Medicine_Strip_Dolo650.jpg";
+      } else {
         const jpegBytes = new Uint8Array([
           0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
           0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
@@ -309,7 +324,7 @@ export default function DocumentUploadPage() {
               <span className="h-px bg-slate-800 flex-1" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
               <button
                 type="button"
                 disabled={isProcessing}
@@ -318,6 +333,16 @@ export default function DocumentUploadPage() {
               >
                 <FileText className="w-4 h-4 text-sky-400" />
                 Sample Prescription (PDF)
+              </button>
+
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => loadSampleDocument("pill")}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-300 transition-colors"
+              >
+                <Pill className="w-4 h-4 text-purple-400" />
+                Sample Medicine Strip (Photo)
               </button>
 
               <button
