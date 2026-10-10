@@ -148,11 +148,16 @@ export async function extractMedicalData(
                 type: "text",
                 text: "Extract all clinical entities from this medical document scan into the structured schema. Identify document type (prescription, lab_report, discharge_summary, or other).",
               },
-              {
-                type: "file",
-                data: fileBuffer,
-                mediaType: mimeType,
-              },
+              mimeType.startsWith("image/")
+                ? {
+                    type: "image",
+                    image: fileBuffer,
+                  }
+                : {
+                    type: "file",
+                    data: fileBuffer,
+                    mediaType: mimeType,
+                  },
             ],
           },
         ],
