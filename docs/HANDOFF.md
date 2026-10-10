@@ -4,7 +4,7 @@
 
 | Feature | Status | Evidence / Notes |
 |---|---|---|
-| A1 Auth + Profile (Landing, Login, Register, Profile, QR) | done | Landing page, multi-role Login (Patient, Doctor, Admin with 1-click quick-fill demo credentials), Register with E.164 phone + Base32 Health ID, dynamic QR code encoding Health ID, trusted contacts manager, and emergency disclosure controls (`/profile`, `app/api/profile/route.ts`). |
+| A1 Auth + Profile (Landing, Login, Register, Profile, QR) | in-progress | Login and registration now expose only Patient and Doctor roles. Supabase signup trigger fix is in migration `20261010000005_patient_doctor_signup.sql`; apply it to the Supabase project to resolve profile creation errors. |
 | A2 Upload + Extraction | done | Built by Member 2 on `feat/extraction-review`. Magic bytes validation (PDF, JPG, PNG), 10MB cap, structured Vision LLM via `lib/llm/adapter.ts`, pure generic & frequency normalizers (`lib/normalize/index.ts`), and extraction route (`app/api/documents/[id]/extract`) with `maxDuration = 60`. |
 | A3 Review & Confirm Screen | done | Built by Member 2 on `feat/extraction-review`. Split-screen review screen (`app/documents/[id]/review/page.tsx`) with PDF canvas/Image viewer, visible yellow highlight ring on confidence < 0.7, low confidence warning banner (< 80), and `/api/documents/[id]/confirm` route syncing clinical records. |
 | A4 Timeline | done | Built by Member 3. Unified cross-provider Patient Journey mixing medications, lab results, visits, and diagnoses. Includes care continuity metrics, facility filters, search, and yellow-highlighted source citations (`app/timeline/page.tsx`, `app/api/timeline/route.ts`). |

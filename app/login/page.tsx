@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   User,
   Stethoscope,
-  ShieldAlert,
   Lock,
   Mail,
   ArrowRight,
@@ -18,7 +17,7 @@ import {
 import { DEMO_CREDENTIALS, saveLocalSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
-type RoleTab = "patient" | "doctor" | "admin";
+type RoleTab = "patient" | "doctor";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,8 +47,7 @@ export default function LoginPage() {
       // 1. Check if user is signing in with demo credentials
       if (
         (activeTab === "patient" && email === DEMO_CREDENTIALS.patient.email) ||
-        (activeTab === "doctor" && email === DEMO_CREDENTIALS.doctor.email) ||
-        (activeTab === "admin" && email === DEMO_CREDENTIALS.admin.email)
+        (activeTab === "doctor" && email === DEMO_CREDENTIALS.doctor.email)
       ) {
         const demo = DEMO_CREDENTIALS[activeTab];
         saveLocalSession({
@@ -62,8 +60,6 @@ export default function LoginPage() {
         setTimeout(() => {
           if (activeTab === "doctor") {
             router.push("/emergency");
-          } else if (activeTab === "admin") {
-            router.push("/admin");
           } else {
             router.push("/summary");
           }
@@ -121,7 +117,7 @@ export default function LoginPage() {
         <div className="rounded-2xl bg-[#091b15]/90 border border-emerald-500/30 p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-6">
           
           {/* Role Switcher Tabs */}
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#061510] border border-emerald-900/50">
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#061510] border border-emerald-900/50">
             <button
               type="button"
               onClick={() => {
@@ -154,21 +150,6 @@ export default function LoginPage() {
               Doctor
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("admin");
-                setError(null);
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === "admin"
-                  ? "bg-emerald-500 text-[#071410] shadow-sm"
-                  : "text-emerald-300/70 hover:text-white"
-              }`}
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              Admin
-            </button>
           </div>
 
           {/* Quick Demo Pill Bar for Judges */}
@@ -194,13 +175,6 @@ export default function LoginPage() {
                 className="text-[11px] px-2.5 py-1 rounded-md bg-[#0a231b] hover:bg-emerald-800/40 text-emerald-200 border border-emerald-500/30 transition-colors"
               >
                 🩺 Demo Doctor
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill("admin")}
-                className="text-[11px] px-2.5 py-1 rounded-md bg-[#0a231b] hover:bg-emerald-800/40 text-emerald-200 border border-emerald-500/30 transition-colors"
-              >
-                🛡️ Demo Admin
               </button>
             </div>
           </div>
@@ -235,8 +209,6 @@ export default function LoginPage() {
                   placeholder={
                     activeTab === "doctor"
                       ? "doctor@medicare.demo"
-                      : activeTab === "admin"
-                      ? "admin@medicare.demo"
                       : "patient@medicare.demo"
                   }
                   required

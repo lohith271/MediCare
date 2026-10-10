@@ -50,21 +50,6 @@ export const DEMO_CREDENTIALS = {
       verified: true,
     },
   },
-  admin: {
-    email: "admin@medicare.demo",
-    password: "Password123!",
-    role: "admin" as UserRole,
-    profile: {
-      id: "demo-admin-001",
-      role: "admin" as UserRole,
-      full_name: "System Administrator",
-      phone: "+919900000000",
-      health_id: "ADM000000001",
-      emergency_enabled: false,
-      emergency_fields: [],
-      emergency_access_hours: 0,
-    },
-  },
 };
 
 const SESSION_STORAGE_KEY = "medicare_demo_session";

@@ -13,7 +13,7 @@
 - **Multi-Role Authentication**:
   - **Patient Portal**: Register with Phone (E.164), Date of Birth, Sex, Blood Group, and auto-generated 12-char Crockford Base32 Health ID.
   - **Doctor Clinical Access**: Register with Medical License No and Hospital Affiliation (starts unverified under clinical safety protocols).
-  - **1-Click Demo Logins**: Instant testing for Hackathon judges (Demo Patient, Demo Doctor, Demo Admin).
+  - **1-Click Demo Logins**: Instant testing for Hackathon judges (Demo Patient and Demo Doctor).
 - **Architecture**: Next.js 15 (App Router), TypeScript, Tailwind CSS, Supabase SSR Auth, Zod schema validation.
 
 ## Environment Variables

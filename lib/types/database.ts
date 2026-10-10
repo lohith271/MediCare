@@ -1,4 +1,4 @@
-export type UserRole = "patient" | "doctor" | "admin";
+export type UserRole = "patient" | "doctor";
 
 export type BloodGroup = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
 export type Sex = "male" | "female" | "other";

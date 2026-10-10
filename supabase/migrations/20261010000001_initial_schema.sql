@@ -3,10 +3,10 @@
 -- Run this in the Supabase Dashboard -> SQL Editor
 -- ============================================================
 
--- 1. Profiles Table (Patients, Doctors, Admins)
+-- 1. Profiles Table (Patients and Doctors)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('patient', 'doctor', 'admin')),
+  role TEXT NOT NULL CHECK (role IN ('patient', 'doctor')),
   full_name TEXT NOT NULL,
   dob DATE,
   sex TEXT CHECK (sex IN ('male', 'female', 'other')),

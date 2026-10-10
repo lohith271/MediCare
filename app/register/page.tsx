@@ -22,8 +22,8 @@ import {
 import {
   patientRegisterSchema,
   doctorRegisterSchema,
-  generateHealthId,
 } from "@/lib/types/auth";
+import { saveLocalSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
 type RegisterRole = "patient" | "doctor";
@@ -31,7 +31,6 @@ type RegisterRole = "patient" | "doctor";
 export default function RegisterPage() {
   const router = useRouter();
   const [role, setRole] = useState<RegisterRole>("patient");
-  const [healthIdPreview] = useState(() => generateHealthId());
 
   // Form State
   const [fullName, setFullName] = useState("");
@@ -87,45 +86,52 @@ export default function RegisterPage() {
         }
       }
 
-      // 2. Register via Supabase Auth
-      const supabase = createClient();
-      const { data, error: sbError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            role,
-            phone,
-            health_id: healthIdPreview,
-            ...(role === "patient" ? { dob, sex, blood_group: bloodGroup } : { license_no: licenseNo, hospital }),
-          },
-        },
+      // Create and confirm the account server-side without sending an email.
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role,
+          full_name: fullName,
+          email,
+          password,
+          phone,
+          ...(role === "patient"
+            ? { dob, sex, blood_group: bloodGroup }
+            : { license_no: licenseNo, hospital }),
+        }),
       });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Registration failed.");
 
-      if (sbError) {
-        // If Supabase credentials are mock or missing, simulate successful registration for demonstration
-        if (sbError.message.includes("fetch failed") || sbError.message.includes("placeholder")) {
-          setSuccess(
-            `Registration simulated successfully for ${fullName} (${role === "patient" ? "Health ID: " + healthIdPreview : "Doctor - Unverified"}). Redirecting to login...`
-          );
-          setTimeout(() => router.push("/login"), 1500);
-          return;
-        }
-        throw new Error(sbError.message);
+      const supabase = createClient();
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      if (loginError || !loginData.user) {
+        throw new Error("Your account was created, but automatic sign-in failed. Please sign in with your email and password.");
       }
 
-      setSuccess(
-        `Registration complete! Welcome to MediCare. ${
-          role === "doctor"
-            ? "Your account has been created and will be reviewed by an administrator."
-            : "Your Health ID is " + healthIdPreview + "."
-        } Redirecting to login...`
-      );
+      saveLocalSession({
+        user: { id: loginData.user.id, email: loginData.user.email || email, role },
+        profile: {
+          id: loginData.user.id,
+          role,
+          full_name: fullName,
+          phone,
+          health_id: result.health_id,
+          ...(role === "patient" ? { dob, sex, blood_group: bloodGroup as "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-" } : {}),
+          emergency_enabled: role === "patient",
+          emergency_fields: role === "patient" ? ["blood_group", "allergies", "conditions", "medications"] : [],
+          emergency_access_hours: role === "patient" ? 24 : 0,
+        },
+        ...(role === "doctor" ? {
+          doctorProfile: { user_id: loginData.user.id, license_no: licenseNo, hospital, verified: false },
+        } : {}),
+      });
 
-      setTimeout(() => {
-        router.push("/login");
-      }, 1500);
+      setSuccess(
+        "Account created and saved. You are now signed in."
+      );
+      setTimeout(() => router.push(role === "doctor" ? "/emergency" : "/summary"), 700);
 
     } catch (err: any) {
       setError(err?.message || "Failed to complete registration.");
@@ -216,7 +222,7 @@ export default function RegisterPage() {
             <div className="p-3.5 rounded-xl bg-teal-950/40 border border-teal-500/30 text-xs text-teal-200/90 flex items-start gap-2.5">
               <ShieldAlert className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
               <div>
-                <strong className="text-teal-300">Doctor Verification Policy:</strong> Doctor accounts start unverified. An administrator verifies your license before access to patient emergency lookup is enabled.
+                <strong className="text-teal-300">Doctor Verification Policy:</strong> Doctor accounts start unverified. Your license must be reviewed before patient emergency lookup is enabled.
               </div>
             </div>
           )}
@@ -348,20 +354,6 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                {/* Health ID Auto-Generated Preview */}
-                <div className="p-3 rounded-xl bg-[#061813] border border-emerald-500/25 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/80">
-                      Auto-Generated Health ID
-                    </span>
-                    <p className="text-xs text-emerald-200/70">
-                      Your random 12-character Crockford Base32 ID
-                    </p>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-400/30 font-mono text-sm font-bold text-emerald-300 tracking-wider">
-                    {healthIdPreview}
-                  </div>
-                </div>
               </>
             )}
 
