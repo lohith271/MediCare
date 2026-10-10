@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const patientId = user?.id || "demo-patient-001";
+    const requestedPatientId = request.nextUrl.searchParams.get("patient_id");
+    const patientId = user?.id || requestedPatientId || "demo-patient-001";
     let meds: MedicationRecord[] = [];
     let diagnoses: DiagnosisRecord[] = [];
     let allergies: AllergyRecord[] = [];
@@ -89,8 +90,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (meds.length === 0 && labs.length === 0) {
-      const demoData = DEMO_PATIENTS_DATA[patientId] || DEMO_PATIENTS_DATA["demo-patient-001"];
+    if (meds.length === 0 && labs.length === 0 && patientId === "demo-patient-001") {
+      const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
       if (demoData) {
         meds = demoData.medications;
         diagnoses = demoData.diagnoses;
@@ -107,13 +108,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("Error evaluating safety rules:", error);
-    const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
-    const fallback = evaluateSafetyRules(
-      demoData.medications,
-      demoData.diagnoses,
-      demoData.allergies,
-      demoData.lab_results
-    );
-    return NextResponse.json(fallback);
+    return NextResponse.json({
+      flags: [],
+      checked_at: new Date().toISOString(),
+      counts: { high: 0, moderate: 0, warning: 0 },
+    });
   }
 }

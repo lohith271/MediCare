@@ -79,24 +79,29 @@ export async function resolvePatientContext(
       }
     }
 
-    // If user has database records, return them
-    if (medications.length > 0 || (dbLogs && dbLogs.length > 0)) {
-      return {
-        context: {
-          patientId,
-          isDemo: false,
-          medications,
-          doseLogs: (dbLogs as DoseLogRecord[]) || [],
-          scheduleOverrides,
-        },
-      };
-    }
+    return {
+      context: {
+        patientId,
+        isDemo: patientId === "demo-patient-001",
+        medications,
+        doseLogs: (dbLogs as DoseLogRecord[]) || [],
+        scheduleOverrides,
+      },
+    };
   }
 
   // Demo fallback
   const demoPatientId = "demo-patient-001";
   if (requestedPatientId && requestedPatientId !== demoPatientId) {
-    return { error: { status: 403, message: "Forbidden: Cannot access another patient's data" } };
+    return {
+      context: {
+        patientId: requestedPatientId,
+        isDemo: false,
+        medications: [],
+        doseLogs: [],
+        scheduleOverrides: {},
+      },
+    };
   }
 
   const demoData = DEMO_PATIENTS_DATA[demoPatientId];

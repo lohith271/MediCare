@@ -732,8 +732,18 @@ export async function getPatientProfile(patientId: string): Promise<Profile> {
     return store.profile;
   }
   return {
-    ...store.profile,
     id: patientId,
+    role: "patient",
+    full_name: "Patient User",
+    dob: undefined,
+    sex: undefined,
+    phone: undefined,
+    blood_group: undefined,
+    health_id: `MED${patientId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 9).toUpperCase()}`,
+    emergency_enabled: true,
+    emergency_fields: ["blood_group", "allergies", "conditions", "medications"],
+    emergency_access_hours: 24,
+    created_at: new Date().toISOString(),
   };
 }
 
@@ -742,12 +752,22 @@ export async function updatePatientProfile(
   updates: Partial<Profile>
 ): Promise<Profile> {
   const store = getStore();
-  const updated = {
-    ...store.profile,
-    ...updates,
-    id: patientId,
-  };
-  store.profile = updated;
+  let updated: Profile;
+  if (store.profile.id === patientId || patientId === DEFAULT_PATIENT_ID) {
+    updated = {
+      ...store.profile,
+      ...updates,
+      id: patientId,
+    };
+    store.profile = updated;
+  } else {
+    const current = await getPatientProfile(patientId);
+    updated = {
+      ...current,
+      ...updates,
+      id: patientId,
+    };
+  }
 
   try {
     const supabase = createAdminClient();
@@ -767,7 +787,7 @@ export async function getTrustedContacts(patientId: string): Promise<TrustedCont
       .select("*")
       .eq("patient_id", patientId);
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as TrustedContact[];
     }
   } catch {
@@ -775,7 +795,10 @@ export async function getTrustedContacts(patientId: string): Promise<TrustedCont
   }
 
   const store = getStore();
-  return store.trustedContacts.filter((c) => c.patient_id === patientId || patientId === DEFAULT_PATIENT_ID);
+  if (patientId === DEFAULT_PATIENT_ID) {
+    return store.trustedContacts;
+  }
+  return store.trustedContacts.filter((c) => c.patient_id === patientId);
 }
 
 export async function addTrustedContact(
@@ -827,7 +850,7 @@ export async function getEncounters(patientId: string): Promise<Encounter[]> {
       .eq("patient_id", patientId)
       .order("start_date", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as Encounter[];
     }
   } catch {
@@ -835,9 +858,14 @@ export async function getEncounters(patientId: string): Promise<Encounter[]> {
   }
 
   const store = getStore();
-  return store.encounters.sort(
-    (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
-  );
+  if (patientId === DEFAULT_PATIENT_ID) {
+    return store.encounters.sort(
+      (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+    );
+  }
+  return store.encounters
+    .filter((e) => e.patient_id === patientId)
+    .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
 }
 
 export async function createEncounter(
@@ -889,7 +917,7 @@ export async function createEncounter(
   if (newEncounter.diagnoses && newEncounter.diagnoses.length > 0) {
     for (const diagName of newEncounter.diagnoses) {
       const exists = store.diagnoses.some(
-        (d) => d.name_canonical.toLowerCase() === diagName.toLowerCase()
+        (d) => d.patient_id === patientId && d.name_canonical.toLowerCase() === diagName.toLowerCase()
       );
       if (!exists) {
         store.diagnoses.unshift({
@@ -952,7 +980,7 @@ export async function getDiagnoses(patientId: string): Promise<Diagnosis[]> {
       .eq("patient_id", patientId)
       .order("diagnosed_date", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as Diagnosis[];
     }
   } catch {
@@ -960,7 +988,10 @@ export async function getDiagnoses(patientId: string): Promise<Diagnosis[]> {
   }
 
   const store = getStore();
-  return store.diagnoses;
+  if (patientId === DEFAULT_PATIENT_ID) {
+    return store.diagnoses;
+  }
+  return store.diagnoses.filter((d) => d.patient_id === patientId);
 }
 
 export async function addDiagnosis(
@@ -997,9 +1028,14 @@ export async function addDiagnosis(
 
 export async function getAppointments(patientId: string): Promise<FollowUpAppointment[]> {
   const store = getStore();
-  return store.appointments.sort(
-    (a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()
-  );
+  if (patientId === DEFAULT_PATIENT_ID) {
+    return store.appointments.sort(
+      (a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()
+    );
+  }
+  return store.appointments
+    .filter((a) => a.patient_id === patientId)
+    .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
 }
 
 export async function updateAppointmentStatus(
@@ -1045,7 +1081,7 @@ export async function getLabResults(patientId: string): Promise<LabResult[]> {
       .eq("patient_id", patientId)
       .order("taken_on", { ascending: true });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as LabResult[];
     }
   } catch {
@@ -1053,7 +1089,10 @@ export async function getLabResults(patientId: string): Promise<LabResult[]> {
   }
 
   const store = getStore();
-  return store.labResults;
+  if (patientId === DEFAULT_PATIENT_ID) {
+    return store.labResults;
+  }
+  return store.labResults.filter((l) => l.patient_id === patientId);
 }
 
 export async function addLabResult(
@@ -1098,7 +1137,7 @@ export async function getMedicalDocuments(patientId: string): Promise<MedicalDoc
       .eq("patient_id", patientId)
       .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       return data as any;
     }
   } catch {
@@ -1106,9 +1145,14 @@ export async function getMedicalDocuments(patientId: string): Promise<MedicalDoc
   }
 
   const store = getStore();
-  return store.medicalDocuments.sort(
-    (a, b) => new Date(b.doc_date).getTime() - new Date(a.doc_date).getTime()
-  );
+  if (patientId === DEFAULT_PATIENT_ID) {
+    return store.medicalDocuments.sort(
+      (a, b) => new Date(b.doc_date).getTime() - new Date(a.doc_date).getTime()
+    );
+  }
+  return store.medicalDocuments
+    .filter((d) => d.patient_id === patientId)
+    .sort((a, b) => new Date(b.doc_date).getTime() - new Date(a.doc_date).getTime());
 }
 
 export async function addMedicalDocument(

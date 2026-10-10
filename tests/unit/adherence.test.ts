@@ -127,6 +127,7 @@ describe("Schedule Windows and Ingredient Replacement", () => {
     patient_marked_stopped: false,
     confidence: 0.95,
     confirmed: true,
+    evidence_text: "Glucophage 500mg BD",
     doc_date: "2026-10-01",
   };
 
@@ -364,11 +365,13 @@ describe("Dose Logging Guardrails and Idempotency", () => {
     expect(resToggle.action).toBe("undone");
   });
 
-  it("returns 403 Forbidden when requesting another patient's data", async () => {
-    // Requesting another patient id while not authorized for that patient
-    const { error } = await resolvePatientContext("unauthorized-other-patient");
-    expect(error).toBeDefined();
-    expect(error?.status).toBe(403);
-    expect(error?.message).toContain("Forbidden");
+  it("returns clean empty context for non-demo new patient", async () => {
+    // Non-demo patient gets a clean empty state context for onboarding
+    const { context } = await resolvePatientContext("new-patient-002");
+    expect(context).toBeDefined();
+    expect(context?.patientId).toBe("new-patient-002");
+    expect(context?.isDemo).toBe(false);
+    expect(context?.medications).toEqual([]);
+    expect(context?.doseLogs).toEqual([]);
   });
 });

@@ -16,11 +16,12 @@ import type { CalendarDayItem } from "@/app/api/adherence/calendar/route";
 import type { AdherenceStats, DayState } from "@/lib/adherence";
 
 interface StreakCalendarProps {
+  patientId?: string;
   today?: string;
   onRefreshToday?: () => void;
 }
 
-export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
+export function StreakCalendar({ patientId, today, onRefreshToday }: StreakCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState<string>("2026-10");
   const [calendarDays, setCalendarDays] = useState<CalendarDayItem[]>([]);
   const [stats, setStats] = useState<AdherenceStats | null>(null);
@@ -31,7 +32,11 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
   const fetchCalendar = useCallback(
     async (month: string) => {
       try {
-        const url = `/api/adherence/calendar?month=${month}${today ? `&today=${today}` : ""}`;
+        const params = new URLSearchParams();
+        if (patientId) params.set("patient_id", patientId);
+        params.set("month", month);
+        if (today) params.set("today", today);
+        const url = `/api/adherence/calendar?${params.toString()}`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await chalkJson(res);
@@ -41,12 +46,16 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
         console.error("Failed to fetch calendar", e);
       }
     },
-    [today]
+    [patientId, today]
   );
 
   const fetchStats = useCallback(async () => {
     try {
-      const url = `/api/adherence/stats${today ? `?today=${today}` : ""}`;
+      const params = new URLSearchParams();
+      if (patientId) params.set("patient_id", patientId);
+      if (today) params.set("today", today);
+      const query = params.toString();
+      const url = `/api/adherence/stats${query ? `?${query}` : ""}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await chalkJson(res);
@@ -55,7 +64,7 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
     } catch (e) {
       console.error("Failed to fetch stats", e);
     }
-  }, [today]);
+  }, [patientId, today]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
@@ -100,7 +109,11 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
     setLoggingId(doseKey);
 
     try {
-      const res = await fetch(`/api/adherence/log${today ? `?today=${today}` : ""}`, {
+      const params = new URLSearchParams();
+      if (patientId) params.set("patient_id", patientId);
+      if (today) params.set("today", today);
+      const query = params.toString();
+      const res = await fetch(`/api/adherence/log${query ? `?${query}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -117,8 +130,12 @@ export function StreakCalendar({ today, onRefreshToday }: StreakCalendarProps) {
 
         // Update selectedDay if open
         if (selectedDay && selectedDay.date === scheduledDate) {
+          const calParams = new URLSearchParams();
+          if (patientId) calParams.set("patient_id", patientId);
+          calParams.set("month", currentMonth);
+          if (today) calParams.set("today", today);
           const updatedCalendarRes = await fetch(
-            `/api/adherence/calendar?month=${currentMonth}${today ? `&today=${today}` : ""}`
+            `/api/adherence/calendar?${calParams.toString()}`
           );
           if (updatedCalendarRes.ok) {
             const data = await updatedCalendarRes.json();

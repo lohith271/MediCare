@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import QRCode from "qrcode";
 import {
   AlertTriangle,
   ShieldAlert,
@@ -25,7 +24,6 @@ import {
   FlaskConical,
   BadgeAlert,
   Copy,
-  QrCode,
   CalendarCheck,
   ChevronRight,
   Stethoscope,
@@ -74,8 +72,6 @@ export default function ClinicalSummaryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   const [selectedCategory, setSelectedCategory] = useState<
     "all" | "allergies" | "reactions" | "medications" | "conditions" | "labs"
@@ -103,10 +99,10 @@ export default function ClinicalSummaryPage() {
       const patientId = session?.user?.id || "demo-patient-001";
 
       const [sumRes, rulesRes, profRes, encRes] = await Promise.all([
-        fetch("/api/summary"),
-        fetch("/api/rules"),
-        fetch(`/api/profile?patient_id=${patientId}`).catch(() => null),
-        fetch(`/api/encounters?patient_id=${patientId}`).catch(() => null),
+        fetch(`/api/summary?patient_id=${encodeURIComponent(patientId)}`),
+        fetch(`/api/rules?patient_id=${encodeURIComponent(patientId)}`),
+        fetch(`/api/profile?patient_id=${encodeURIComponent(patientId)}`).catch(() => null),
+        fetch(`/api/encounters?patient_id=${encodeURIComponent(patientId)}`).catch(() => null),
       ]);
 
       if (!sumRes.ok) throw new Error("Failed to load clinical summary");
@@ -125,14 +121,6 @@ export default function ClinicalSummaryPage() {
         const profData = await profRes.json();
         if (profData.success && profData.profile) {
           setProfile(profData.profile);
-          if (profData.profile.health_id) {
-            const qr = await QRCode.toDataURL(profData.profile.health_id, {
-              width: 260,
-              margin: 2,
-              color: { dark: "#061811", light: "#ffffff" },
-            });
-            setQrDataUrl(qr);
-          }
         }
       }
 
@@ -374,17 +362,6 @@ export default function ClinicalSummaryPage() {
                 {profile?.blood_group || "B+"}
               </span>
             </div>
-
-            {qrDataUrl && (
-              <button
-                onClick={() => setQrModalOpen(true)}
-                className="bg-[#051711]/90 hover:bg-emerald-950/60 border border-emerald-500/40 rounded-2xl p-2.5 flex flex-col items-center justify-center text-emerald-300 hover:text-white transition-all shadow-lg"
-                title="View Health ID QR"
-              >
-                <QrCode className="w-5 h-5 mb-0.5" />
-                <span className="text-[9px] font-bold">QR Pass</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -440,20 +417,25 @@ export default function ClinicalSummaryPage() {
         </div>
       </div>
 
-      {/* TODAY'S DOSES (Above the fold) */}
-      <div className="print:hidden">
-        <TodayCard
-          key={`today-card-${adherenceRefreshKey}`}
-          onRefreshCalendar={() => setAdherenceRefreshKey((k) => k + 1)}
-        />
-      </div>
+      {/* DAILY MEDICATION SCHEDULE & STREAK TRACKING (Top Section: Today's Doses left, Streak Calendar top-right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:hidden items-start">
+        {/* Today's Doses (Left Column) */}
+        <div className="lg:col-span-7 space-y-6">
+          <TodayCard
+            patientId={profile?.id || (getLocalSession()?.user?.id ?? "demo-patient-001")}
+            key={`today-card-${adherenceRefreshKey}`}
+            onRefreshCalendar={() => setAdherenceRefreshKey((k) => k + 1)}
+          />
+        </div>
 
-      {/* STREAK CALENDAR (Below the Today card, reached by scrolling) */}
-      <div className="print:hidden">
-        <StreakCalendar
-          key={`streak-calendar-${adherenceRefreshKey}`}
-          onRefreshToday={() => setAdherenceRefreshKey((k) => k + 1)}
-        />
+        {/* Adherence & Streak Calendar (Top-Right Column) */}
+        <div className="lg:col-span-5 space-y-6">
+          <StreakCalendar
+            patientId={profile?.id || (getLocalSession()?.user?.id ?? "demo-patient-001")}
+            key={`streak-calendar-${adherenceRefreshKey}`}
+            onRefreshToday={() => setAdherenceRefreshKey((k) => k + 1)}
+          />
+        </div>
       </div>
 
       {/* Safety Alerts Banner (Always worded 'Needs doctor review') */}
@@ -1183,49 +1165,7 @@ export default function ClinicalSummaryPage() {
         </div>
       )}
 
-      {/* QR Pass Full Modal */}
-      {qrModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm print:hidden"
-        >
-          <div className="bg-[#091b15] border border-emerald-500/40 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-emerald-900/60">
-              <span className="text-xs font-bold text-emerald-300">Emergency &amp; Doctor QR Pass</span>
-              <button
-                onClick={() => setQrModalOpen(false)}
-                className="text-emerald-400 hover:text-white p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-4 bg-white rounded-2xl inline-block shadow-inner">
-              <img src={qrDataUrl} alt="Health ID QR Code" className="w-52 h-52 mx-auto" />
-            </div>
-
-            <div>
-              <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-400/70 block">
-                Health ID
-              </span>
-              <p className="font-mono text-lg font-black text-white mt-0.5">
-                {profile?.health_id || "MED987654321"}
-              </p>
-              <p className="text-[11px] text-emerald-300/60 mt-1">
-                Encodes Health ID only. Doctors can scan in ER mode for immediate read-only emergency access.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setQrModalOpen(false)}
-              className="w-full py-2.5 rounded-xl bg-emerald-400 text-[#071410] font-bold text-xs hover:bg-emerald-300 transition-colors"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Disclaimer Footer (stays on every page) */}
       <footer className="pt-8 border-t border-emerald-950 text-center text-xs text-emerald-400/60 space-y-1">

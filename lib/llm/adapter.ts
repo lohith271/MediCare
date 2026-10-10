@@ -1,6 +1,4 @@
 import { z } from "zod";
-import { generateObject } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 /**
  * -------------------------------------------------------------

@@ -75,6 +75,7 @@ export default function DocumentReviewPage({ params }: PageProps) {
 
     async function renderPdf() {
       try {
+        // @ts-expect-error dynamic untyped pdfjs-dist import
         const pdfjs = await import("pdfjs-dist");
         // Set worker source
         pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;

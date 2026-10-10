@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     // Retrieve documents from both medical vault and extraction store
     const vaultDocs = await getMedicalDocuments(patientId);
-    const extractionDocs = documentsStore.getAll();
+    const extractionDocs = documentsStore.getAll().filter((d) => d.patient_id === patientId);
 
     // Map extraction docs into combined list if not already present
     const combinedDocs = [...extractionDocs];
@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       const file = formData.get("file");
+      const reqPatientId = (formData.get("patient_id") as string) || DEFAULT_PATIENT_ID;
 
       if (!file || !(file instanceof File)) {
         return NextResponse.json(
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest) {
       }
 
       const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      const storagePath = `documents/patient-default/${docId}.${magic.file_type}`;
+      const storagePath = `documents/${reqPatientId}/${docId}.${magic.file_type}`;
       const base64DataUrl = `data:${magic.mime_type};base64,${buffer.toString("base64")}`;
 
       // Upload to Supabase Storage if available
@@ -148,7 +149,7 @@ export async function POST(req: NextRequest) {
 
       const newDoc: StoredDocument = {
         id: docId,
-        patient_id: DEFAULT_PATIENT_ID,
+        patient_id: reqPatientId,
         file_name: file.name || `upload_${docId}.${magic.file_type}`,
         file_type: magic.file_type,
         mime_type: magic.mime_type,
@@ -166,7 +167,7 @@ export async function POST(req: NextRequest) {
       documentsStore.save(newDoc);
 
       // Also register in medical vault store
-      await addMedicalDocument(DEFAULT_PATIENT_ID, {
+      await addMedicalDocument(reqPatientId, {
         title: file.name,
         category: magic.file_type === "pdf" ? "prescription_pdf" : "lab_pdf",
         file_name: file.name,

@@ -19,6 +19,7 @@ import {
 import type { ScheduledDose } from "@/lib/adherence";
 
 interface TodayCardProps {
+  patientId?: string;
   today?: string;
   onRefreshCalendar?: () => void;
 }
@@ -62,7 +63,7 @@ const PERIOD_CONFIG = {
   Night: { icon: Moon, label: "Night", sub: "9:00 PM onwards", color: "text-blue-500" },
 };
 
-export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
+export function TodayCard({ patientId, today, onRefreshCalendar }: TodayCardProps) {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loggingKey, setLoggingKey] = useState<string | null>(null);
@@ -74,7 +75,11 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
 
   const fetchToday = useCallback(async () => {
     try {
-      const url = `/api/adherence/today${today ? `?today=${today}` : ""}`;
+      const params = new URLSearchParams();
+      if (patientId) params.set("patient_id", patientId);
+      if (today) params.set("today", today);
+      const query = params.toString();
+      const url = `/api/adherence/today${query ? `?${query}` : ""}`;
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
@@ -85,7 +90,7 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
     } finally {
       setLoading(false);
     }
-  }, [today]);
+  }, [patientId, today]);
 
   useEffect(() => {
     fetchToday();
@@ -101,7 +106,11 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
     setLoggingKey(key);
 
     try {
-      const res = await fetch(`/api/adherence/log${today ? `?today=${today}` : ""}`, {
+      const params = new URLSearchParams();
+      if (patientId) params.set("patient_id", patientId);
+      if (today) params.set("today", today);
+      const query = params.toString();
+      const res = await fetch(`/api/adherence/log${query ? `?${query}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -407,6 +416,18 @@ export function TodayCard({ today, onRefreshCalendar }: TodayCardProps) {
           );
         })}
       </div>
+
+      {/* Empty State when no scheduled, SOS, or unrecognized meds exist */}
+      {data.totalScheduled === 0 && data.asNeededMeds.length === 0 && data.unrecognizedMeds.length === 0 && (
+        <div className="p-8 text-center rounded-xl bg-slate-50 dark:bg-slate-850/60 border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+            No active medications scheduled for today
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            Once you upload and confirm a prescription or consultation record, your daily dose timetable will automatically appear here.
+          </p>
+        </div>
+      )}
 
       {/* As-Needed (SOS / PRN) Medications */}
       {data.asNeededMeds.length > 0 && (

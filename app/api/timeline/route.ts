@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const patientId = user?.id || "demo-patient-001";
+    const requestedPatientId = request.nextUrl.searchParams.get("patient_id");
+    const patientId = user?.id || requestedPatientId || "demo-patient-001";
     let events: TimelineEvent[] = [];
 
     // Check DB first
@@ -156,9 +157,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fallback to simulated demo patient
-    if (!hasDbData) {
-      const demo = DEMO_PATIENTS_DATA[patientId] || DEMO_PATIENTS_DATA["demo-patient-001"];
+    // Fallback to simulated demo patient ONLY if patientId is demo-patient-001
+    if (!hasDbData && patientId === "demo-patient-001") {
+      const demo = DEMO_PATIENTS_DATA["demo-patient-001"];
 
       // Add medications
       for (const m of demo.medications) {

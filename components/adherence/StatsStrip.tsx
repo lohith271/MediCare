@@ -70,62 +70,62 @@ export function StatsStrip({ stats, loading = false }: StatsStripProps) {
   return (
     <div className="space-y-4">
       {/* 3 Key Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
         {/* Current Streak */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Current Streak
             </div>
             <div className="mt-1 flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {stats.currentStreak}
               </span>
-              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
                 {stats.currentStreak === 1 ? "day" : "days"}
               </span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-            <Flame className="w-5 h-5" aria-hidden="true" />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+            <Flame className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
           </div>
         </div>
 
         {/* Best Streak */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Best Streak
             </div>
             <div className="mt-1 flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {stats.bestStreak}
               </span>
-              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
                 {stats.bestStreak === 1 ? "day" : "days"}
               </span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400">
-            <Trophy className="w-5 h-5" aria-hidden="true" />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <Trophy className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
           </div>
         </div>
 
         {/* 30-Day Adherence */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-3.5 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               30-Day Adherence
             </div>
             <div className="mt-1 flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {stats.adherence30DayRate}%
               </span>
-              <span className="text-xs font-medium text-slate-400">completed</span>
+              <span className="text-[11px] sm:text-xs font-medium text-slate-400">completed</span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sky-600 dark:text-sky-400">
-            <Percent className="w-5 h-5" aria-hidden="true" />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+            <Percent className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
           </div>
         </div>
       </div>

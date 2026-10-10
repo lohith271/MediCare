@@ -146,6 +146,7 @@ describe("Deterministic Safety Rules Engine", () => {
         reaction: "Urticaria / Angioedema",
         confidence: 0.9,
         confirmed: true,
+        evidence_text: "Allergy: Amoxicillin (Urticaria)",
       },
     ];
 
@@ -180,6 +181,7 @@ describe("Deterministic Safety Rules Engine", () => {
         reaction: "Severe gastric bleeding",
         confidence: 1.0,
         confirmed: true,
+        evidence_text: "Patient reported severe gastric bleeding with aspirin",
       },
     ];
 

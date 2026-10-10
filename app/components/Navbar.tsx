@@ -14,7 +14,6 @@ import {
   Menu,
   X,
   LayoutDashboard,
-  QrCode,
   CalendarCheck,
 } from "lucide-react";
 import { getLocalSession, clearLocalSession, AuthSession } from "@/lib/auth";
@@ -45,14 +44,14 @@ export default function Navbar() {
     { href: "/summary", label: "Overview", icon: LayoutDashboard },
     { href: "/consultations", label: "Consultations & Follow-ups", icon: Stethoscope },
     { href: "/trends", label: "Lab Trends", icon: TrendingUp },
-    { href: "/profile", label: "Profile & QR", icon: QrCode },
+    { href: "/profile", label: "Profile & Security", icon: User },
     { href: "/documents", label: "Medical Files & Scans", icon: FileText },
     { href: "/emergency", label: "Emergency ER", icon: ShieldAlert },
   ];
 
   const doctorNavLinks = [
     { href: "/emergency", label: "Emergency ER", icon: ShieldAlert },
-    { href: "/access", label: "Access by Code", icon: QrCode },
+    { href: "/access", label: "Access by Code", icon: FileText },
   ];
 
   const currentNavLinks =

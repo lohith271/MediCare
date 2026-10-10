@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const patientId = user?.id || "demo-patient-001";
+    const requestedPatientId = request.nextUrl.searchParams.get("patient_id");
+    const patientId = user?.id || requestedPatientId || "demo-patient-001";
     let meds: MedicationRecord[] = [];
     let diagnoses: DiagnosisRecord[] = [];
     let allergies: AllergyRecord[] = [];
@@ -69,13 +70,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fallback to simulated demo patient if no data in database
+    // Fallback to simulated demo patient ONLY if patientId is demo-patient-001
     if (meds.length === 0 && diagnoses.length === 0 && allergies.length === 0) {
-      const demoData = DEMO_PATIENTS_DATA[patientId] || DEMO_PATIENTS_DATA["demo-patient-001"];
-      if (demoData) {
-        meds = demoData.medications;
-        diagnoses = demoData.diagnoses;
-        allergies = demoData.allergies;
+      if (patientId === "demo-patient-001") {
+        const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
+        if (demoData) {
+          meds = demoData.medications;
+          diagnoses = demoData.diagnoses;
+          allergies = demoData.allergies;
+        }
       }
     }
 
@@ -96,18 +99,19 @@ export async function GET(request: NextRequest) {
         labs = labsRes.data;
       }
     }
-    if (labs.length === 0) {
-      const demoData = DEMO_PATIENTS_DATA[patientId] || DEMO_PATIENTS_DATA["demo-patient-001"];
+    if (labs.length === 0 && patientId === "demo-patient-001") {
+      const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
       labs = demoData?.lab_results || [];
     }
 
     return NextResponse.json({ summary, labs });
   } catch (error: any) {
     console.error("Error generating clinical summary:", error);
-    // Graceful demo fallback on error
-    const demoData = DEMO_PATIENTS_DATA["demo-patient-001"];
-    const summary = buildSummary(demoData.medications, demoData.diagnoses, demoData.allergies);
-    return NextResponse.json({ summary, labs: demoData.lab_results });
+    // Return empty summary on error rather than demo data for arbitrary users
+    return NextResponse.json({
+      summary: buildSummary([], [], []),
+      labs: [],
+    });
   }
 }
 
