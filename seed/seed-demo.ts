@@ -89,6 +89,7 @@ function withOwner<T extends { id?: string }>(rows: T[], patientId: string) {
 
 async function seedPatientRecords(patientId: string) {
   const tables = [
+    "allergies",
     "appointments",
     "medications",
     "diagnoses",
@@ -104,6 +105,7 @@ async function seedPatientRecords(patientId: string) {
 
   const d = demoPatientData;
   const inserts: Array<[string, unknown[]]> = [
+    ["allergies", withOwner(d.allergies, patientId)],
     ["trusted_contacts", withOwner(d.trustedContacts, patientId)],
     ["diagnoses", withOwner(d.diagnoses, patientId)],
     ["medications", withOwner(d.medications, patientId)],

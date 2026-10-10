@@ -5,6 +5,7 @@
  */
 import type {
   Profile,
+  AllergyRecord,
   TrustedContact,
   Diagnosis,
   Medication,
@@ -18,6 +19,7 @@ export const DEMO_PATIENT_PLACEHOLDER_ID = "demo-patient-001";
 
 export interface DemoPatientData {
   profile: Profile;
+  allergies: AllergyRecord[];
   trustedContacts: TrustedContact[];
   diagnoses: Diagnosis[];
   medications: Medication[];
@@ -43,6 +45,22 @@ const initialStore: DemoPatientData = {
     emergency_access_hours: 24,
     created_at: "2026-01-10T08:00:00Z",
   },
+  allergies: [
+    {
+      id: "al-001",
+      patient_id: DEMO_PATIENT_PLACEHOLDER_ID,
+      source_type: "patient" as const,
+      document_id: null,
+      page_number: null,
+      evidence_text: "Patient-reported: skin rash (hives) after a course of penicillin",
+      substance: "Penicillin",
+      reaction: "Skin rash (hives)",
+      created_on: "2026-01-10",
+      confidence: 1.0,
+      confirmed: true,
+      created_at: "2026-01-10T08:00:00Z",
+    },
+  ],
   trustedContacts: [
     {
       id: "tc-001",

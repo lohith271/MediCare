@@ -1,3 +1,4 @@
+import { attachDocuments } from "@/lib/documents/attach";
 import { createClient } from "@/lib/supabase/server";
 import { requireSignedInPatient } from "@/lib/access/patient-access";
 import type { MedicationRecord } from "@/lib/types/database";
@@ -35,10 +36,11 @@ export async function resolvePatientContext(): Promise<{
 
   const { data: dbMeds, error: medsError } = await supabase
     .from("medications")
-    .select("*, documents(doc_date, doc_type, doctor, hospital)")
+    .select("*")
     .eq("patient_id", patientId)
     .eq("confirmed", true);
   if (medsError) throw new Error(`Loading medications failed: ${medsError.message}`);
+  await attachDocuments(supabase, dbMeds);
 
   const medications: MedicationRecord[] = (dbMeds || []).map((m: any) => ({
     ...m,

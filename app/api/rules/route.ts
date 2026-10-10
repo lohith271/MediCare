@@ -1,3 +1,4 @@
+import { attachDocuments } from "@/lib/documents/attach";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { evaluateSafetyRules } from "@/lib/rules";
@@ -22,25 +23,26 @@ export async function GET(request: NextRequest) {
     const [medsRes, diagsRes, allergiesRes, labsRes] = await Promise.all([
       admin
         .from("medications")
-        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .select("*")
         .eq("patient_id", patientId)
         .eq("confirmed", true),
       admin
         .from("diagnoses")
-        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .select("*")
         .eq("patient_id", patientId)
         .eq("confirmed", true),
       admin
         .from("allergies")
-        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .select("*")
         .eq("patient_id", patientId)
         .eq("confirmed", true),
       admin
         .from("lab_results")
-        .select("*, documents(doc_date, doc_type, doctor, hospital)")
+        .select("*")
         .eq("patient_id", patientId)
         .eq("confirmed", true),
     ]);
+    await Promise.all([medsRes, diagsRes, allergiesRes, labsRes].map((r) => attachDocuments(admin, r.data)));
     for (const res of [medsRes, diagsRes, allergiesRes, labsRes]) {
       if (res.error) throw new Error(`Loading records for safety rules failed: ${res.error.message}`);
     }
