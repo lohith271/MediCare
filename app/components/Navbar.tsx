@@ -15,6 +15,7 @@ import {
   X,
   LayoutDashboard,
   CalendarCheck,
+  KeyRound,
 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth";
 
@@ -33,18 +34,21 @@ export default function Navbar() {
   // Patient portal links only show AFTER login
   const isLoggedIn = !loading && session !== null && !isAuthPage;
 
+  // Patients: their own record and sharing. No emergency access (doctors only).
   const patientNavLinks = [
     { href: "/summary", label: "Overview", icon: LayoutDashboard },
-    { href: "/consultations", label: "Consultations & Follow-ups", icon: Stethoscope },
+    { href: "/consultations", label: "Visits", icon: Stethoscope },
     { href: "/trends", label: "Lab Trends", icon: TrendingUp },
-    { href: "/profile", label: "Profile & Security", icon: User },
-    { href: "/documents", label: "Medical Files & Scans", icon: FileText },
-    { href: "/emergency", label: "Emergency ER", icon: ShieldAlert },
+    { href: "/documents", label: "Files", icon: FileText },
+    { href: "/share", label: "Share", icon: ShieldAlert },
+    { href: "/profile", label: "Profile", icon: User },
   ];
 
+  // Doctors: dashboard, patient code, and emergency lookup.
   const doctorNavLinks = [
+    { href: "/doctor", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/access", label: "Patient Code", icon: KeyRound },
     { href: "/emergency", label: "Emergency ER", icon: ShieldAlert },
-    { href: "/access", label: "Access by Code", icon: FileText },
   ];
 
   const currentNavLinks =

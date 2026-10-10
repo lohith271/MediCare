@@ -6,7 +6,7 @@ import {
   SupabaseNotConfiguredError,
   type SessionUser,
 } from "@/lib/supabase/server";
-import { verifyEmergencySessionToken, verifyShareSessionToken } from "@/lib/access/session";
+import { SHARE_COOKIE, verifyEmergencySessionToken, verifyShareSessionToken } from "@/lib/access/session";
 
 /*
  * Who may read or change a patient's data.
@@ -28,10 +28,21 @@ export type PatientAccess =
     }
   | { ok: false; status: 401 | 403 | 503; error: string };
 
+/**
+ * Share token from `Authorization: Bearer`, or from the share cookie set when a doctor
+ * enters a code. The cookie lets the doctor's pages read data without handling tokens.
+ */
 export function bearerToken(req: Request): string | null {
   const header = req.headers.get("authorization") || "";
   const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
-  return match ? match[1] : null;
+  if (match) return match[1];
+
+  const cookies = req.headers.get("cookie") || "";
+  const cookie = cookies
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${SHARE_COOKIE}=`));
+  return cookie ? decodeURIComponent(cookie.slice(SHARE_COOKIE.length + 1)) : null;
 }
 
 /**

@@ -1,266 +1,82 @@
 "use client";
 
-import { useState } from "react";
-import { Shield, Key, AlertTriangle, CheckCircle, RefreshCw, UserCheck, Stethoscope, FileText, Activity, AlertCircle, Pill } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { KeyRound, Loader2 } from "lucide-react";
+import SignInRequired from "@/components/SignInRequired";
+import { useSession } from "@/lib/auth";
 
-interface ScopedRecord {
-  profile: {
-    id: string;
-    full_name: string;
-    dob?: string;
-    sex?: string;
-    blood_group?: string;
-    health_id: string;
-  };
-  scope: string[];
-  expires_at: string;
-  uses_remaining: number;
-}
-
-export default function DoctorAccessPortal() {
+export default function PatientCodePage() {
+  const router = useRouter();
+  const { session, loading } = useSession();
   const [code, setCode] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accessData, setAccessData] = useState<ScopedRecord | null>(null);
-  // Bearer token from a successful verify. Kept in memory only; sent on any later patient-data read.
-  const [shareToken, setShareToken] = useState<string | null>(null);
 
-  const handleVerify = async (e: React.FormEvent) => {
+  if (loading) return <p className="p-10 text-center text-sm text-emerald-200/70">Loading…</p>;
+  if (!session) return <SignInRequired />;
+  if (session.user.role !== "doctor") {
+    return <SignInRequired message="Patient codes are entered by doctors." showLink={false} />;
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setIsVerifying(true);
+    setBusy(true);
     setError(null);
-
-    const cleanCode = code.trim().toUpperCase();
-    if (cleanCode.length !== 8) {
-      setError("Please enter a valid 8-character code");
-      setIsVerifying(false);
-      return;
-    }
-
     try {
       const res = await fetch("/api/share/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: cleanCode }),
+        body: JSON.stringify({ code: code.trim().toUpperCase() }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to verify share code");
-      }
-
-      setAccessData(data);
-      setShareToken(data.token ?? null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsVerifying(false);
+      if (!res.ok) throw new Error(data.error || "Could not verify the code");
+      router.push("/shared");
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
     }
-  };
-
-  const isScopeAllowed = (category: string) => {
-    if (!accessData) return false;
-    return accessData.scope.includes("all") || accessData.scope.includes(category);
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-teal-800 via-slate-900 to-blue-900 text-white py-10 px-4 sm:px-6 shadow-md">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <main className="max-w-md mx-auto px-4 py-16">
+      <div className="rounded-2xl border border-emerald-900/40 bg-slate-900/60 p-6 space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+            <KeyRound className="w-5 h-5 text-emerald-300" />
+          </div>
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-200 text-xs font-semibold mb-3 backdrop-blur-sm border border-teal-400/30">
-              <Stethoscope className="w-3.5 h-3.5" /> Doctor Access Portal
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Patient Record Access
-            </h1>
-            <p className="text-slate-300 text-sm mt-1">
-              Enter a patient-provided 8-character temporary share code to view read-only scoped records.
+            <h1 className="text-lg font-bold text-emerald-50">Enter patient code</h1>
+            <p className="text-xs text-emerald-200/70">
+              Ask the patient for their 8-character code. The code expires on the date they set.
             </p>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-8">
-        {!accessData ? (
-          /* Code Entry View */
-          <div className="bg-white rounded-2xl p-6 sm:p-10 shadow-sm border border-slate-200 max-w-lg mx-auto">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100">
-                <Key className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">Enter Temporary Share Code</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Enter the 8-character code generated by the patient
-              </p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleVerify} className="space-y-6">
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 tracking-wider mb-2">
-                  8-Character Share Code
-                </label>
-                <input
-                  type="text"
-                  maxLength={8}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. X7K9M2P4"
-                  className="w-full px-4 py-4 rounded-xl border border-slate-300 font-mono text-center text-2xl font-bold tracking-widest text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase uppercase placeholder:text-slate-300"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isVerifying || code.trim().length !== 8}
-                className="w-full py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isVerifying ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Verifying Code...
-                  </>
-                ) : (
-                  <>
-                    <Shield className="w-4 h-4" /> Verify & Access Patient Record
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        ) : (
-          /* Scoped Record View */
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            {/* Banner */}
-            <div className="bg-emerald-950 text-emerald-100 rounded-2xl p-5 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-500/20 rounded-xl border border-emerald-400/30 text-emerald-400">
-                  <CheckCircle className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-base">Read-Only Scoped Access Active</h3>
-                  <p className="text-xs text-emerald-300 mt-0.5">
-                    Expires: {new Date(accessData.expires_at).toLocaleString()} | Uses Remaining: {accessData.uses_remaining}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setAccessData(null)}
-                className="px-3 py-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-emerald-200 text-xs font-semibold transition-all border border-emerald-700"
-              >
-                Exit Portal
-              </button>
-            </div>
-
-            {/* Patient Header Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xl border border-blue-200">
-                  {accessData.profile.full_name?.charAt(0) || "P"}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">{accessData.profile.full_name}</h2>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                    <span>Health ID: <strong className="font-mono text-slate-700">{accessData.profile.health_id}</strong></span>
-                    <span>•</span>
-                    <span>Blood Group: <strong className="text-red-600">{accessData.profile.blood_group || "B+"}</strong></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Scoped Sections */}
-            <div className="space-y-6">
-              {/* Allergies */}
-              {isScopeAllowed("allergies") && (
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-red-500" /> Allergies & Past Adverse Reactions
-                  </h3>
-                  <div className="p-4 bg-red-50/60 border border-red-100 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-red-900 text-sm">Penicillin</span>
-                      <span className="text-xs px-2.5 py-1 bg-red-100 text-red-800 rounded-full font-medium">Severe Reaction</span>
-                    </div>
-                    <p className="text-xs text-red-700 mt-1">Severe skin rash & anaphylaxis reported</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Current Medicines */}
-              {isScopeAllowed("medications") && (
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <Pill className="w-5 h-5 text-blue-600" /> Active Medications
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
-                      <h4 className="font-bold text-slate-900 text-sm">Metformin 500 mg</h4>
-                      <p className="text-xs text-slate-600 mt-1">1 tablet • twice daily</p>
-                      <span className="inline-block mt-2 text-[10px] uppercase font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Active</span>
-                    </div>
-                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
-                      <h4 className="font-bold text-slate-900 text-sm">Amlodipine 5 mg</h4>
-                      <p className="text-xs text-slate-600 mt-1">1 tablet • once daily</p>
-                      <span className="inline-block mt-2 text-[10px] uppercase font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Active</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Conditions */}
-              {isScopeAllowed("conditions") && (
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-emerald-600" /> Recorded Conditions
-                  </h3>
-                  <ul className="divide-y divide-slate-100 text-xs">
-                    <li className="py-2.5 flex justify-between items-center">
-                      <span className="font-medium text-slate-800">Type 2 Diabetes Mellitus</span>
-                      <span className="text-slate-500">First recorded: Mar 2021</span>
-                    </li>
-                    <li className="py-2.5 flex justify-between items-center">
-                      <span className="font-medium text-slate-800">Essential Hypertension</span>
-                      <span className="text-slate-500">First recorded: Nov 2019</span>
-                    </li>
-                  </ul>
-                </div>
-              )}
-
-              {/* Lab Results */}
-              {isScopeAllowed("lab_results") && (
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-indigo-600" /> Recent Lab Reports
-                  </h3>
-                  <div className="space-y-2 text-xs">
-                    <div className="p-3 bg-slate-50 rounded-xl flex justify-between items-center">
-                      <div>
-                        <span className="font-semibold text-slate-800 block">HbA1c (Glycated Hemoglobin)</span>
-                        <span className="text-slate-500">Thyrocare Labs • 2026-09-15</span>
-                      </div>
-                      <span className="font-mono font-bold text-slate-900 bg-white px-3 py-1 rounded-lg border">7.2 %</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="mt-16 text-center text-xs text-slate-400 px-4">
-        MediCare is a patient records app, not insurance. Demo with simulated data. Decision support only, not a diagnosis.
-      </footer>
-    </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            maxLength={8}
+            autoComplete="off"
+            placeholder="e.g. 7K3F9XQ2"
+            className="w-full text-center tracking-[0.3em] text-lg font-mono uppercase rounded-xl bg-slate-950 border border-emerald-900/60 px-4 py-3 text-emerald-50 placeholder:text-emerald-200/30 focus:outline-none focus:border-emerald-400"
+          />
+          {error && (
+            <p className="text-sm text-rose-300 bg-rose-950/40 border border-rose-900/50 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={busy || code.trim().length !== 8}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 text-[#071410] font-bold py-3 hover:bg-emerald-300 disabled:opacity-50 transition"
+          >
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            Open patient record
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }

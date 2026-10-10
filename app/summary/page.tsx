@@ -384,20 +384,6 @@ export default function ClinicalSummaryPage() {
               Patient Timeline
             </Link>
             <Link
-              href="/consultations"
-              className="px-3.5 py-2 rounded-xl border border-emerald-800/60 text-emerald-200 hover:text-white hover:border-emerald-700 text-xs font-medium transition-all flex items-center gap-1.5"
-            >
-              <Stethoscope className="w-3.5 h-3.5" />
-              Consultations
-            </Link>
-            <Link
-              href="/trends"
-              className="px-3.5 py-2 rounded-xl border border-emerald-800/60 text-emerald-200 hover:text-white hover:border-emerald-700 text-xs font-medium transition-all flex items-center gap-1.5"
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              Lab Trends
-            </Link>
-            <Link
               href="/documents/upload"
               className="px-3.5 py-2 rounded-xl border border-emerald-800/60 text-emerald-200 hover:text-white hover:border-emerald-700 text-xs font-medium transition-all flex items-center gap-1.5"
             >

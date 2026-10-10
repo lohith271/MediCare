@@ -99,3 +99,6 @@ export async function verifyEmergencySessionToken(
     return null;
   }
 }
+
+/** Cookie that holds the doctor's share-session token after a successful code entry. */
+export const SHARE_COOKIE = "medicare_share";

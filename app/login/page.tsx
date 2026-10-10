@@ -40,7 +40,7 @@ export default function LoginPage() {
 
       setSuccessMsg("Login successful! Redirecting...");
       setTimeout(() => {
-        router.push(role === "doctor" ? "/emergency" : "/summary");
+        router.push(role === "doctor" ? "/doctor" : "/summary");
       }, 1000);
     } catch (err: any) {
       setError(err?.message || "An unexpected error occurred during login.");

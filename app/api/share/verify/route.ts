@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/ratelimit";
-import { createShareSessionToken } from "@/lib/access/session";
+import { createShareSessionToken, SHARE_COOKIE } from "@/lib/access/session";
 import { logAccess } from "@/lib/access/log";
 import { errorResponse } from "@/lib/access/patient-access";
 import crypto from "crypto";
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
       ip,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       token,
       patient_id: share.patient_id,
@@ -113,6 +113,14 @@ export async function POST(req: Request) {
         health_id: null,
       },
     });
+    response.cookies.set(SHARE_COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      expires: new Date(share.expires_at),
+    });
+    return response;
   } catch (err) {
     return errorResponse(err, "Failed to verify share code");
   }
