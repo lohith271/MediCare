@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import QRCode from "qrcode";
 import {
   User,
@@ -262,6 +263,16 @@ export default function SummaryDashboardPage() {
               <QrCode className="w-6 h-6 text-emerald-400" />
               <span className="text-[10px] font-bold">QR Pass</span>
             </button>
+
+            {/* View Scans & PDFs Vault Button */}
+            <Link
+              href="/documents"
+              className="bg-[#051711]/90 hover:bg-[#082219] border border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-3.5 shadow-lg flex flex-col items-center justify-center gap-1 text-emerald-300 transition-all hover:scale-105"
+              title="View Medical Scans & PDFs"
+            >
+              <FileText className="w-6 h-6 text-emerald-400" />
+              <span className="text-[10px] font-bold">Scans & PDFs</span>
+            </Link>
           </div>
         </div>
 

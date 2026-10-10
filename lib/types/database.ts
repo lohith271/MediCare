@@ -140,3 +140,29 @@ export interface FollowUpAppointment {
   status: "upcoming" | "completed" | "cancelled" | "overdue";
   created_at?: string;
 }
+
+export type MedicalDocumentCategory =
+  | "xray"
+  | "mri_ct"
+  | "ultrasound"
+  | "lab_pdf"
+  | "prescription_pdf"
+  | "discharge_summary"
+  | "clinical_photo"
+  | "other";
+
+export interface MedicalDocument {
+  id: string;
+  patient_id: string;
+  title: string;
+  category: MedicalDocumentCategory;
+  file_name: string;
+  file_type: string;
+  file_size_bytes?: number;
+  file_url: string;
+  doc_date: string;
+  doctor?: string;
+  hospital?: string;
+  notes?: string;
+  created_at?: string;
+}

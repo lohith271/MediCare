@@ -46,7 +46,7 @@ export default function Navbar() {
     { href: "/consultations", label: "Consultations & Follow-ups", icon: Stethoscope },
     { href: "/trends", label: "Lab Trends", icon: TrendingUp },
     { href: "/profile", label: "Profile & QR", icon: QrCode },
-    { href: "/documents/upload", label: "Upload Records", icon: FileText },
+    { href: "/documents", label: "Medical Files & Scans", icon: FileText },
     { href: "/emergency", label: "Emergency ER", icon: ShieldAlert },
   ];
 

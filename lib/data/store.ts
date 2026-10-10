@@ -6,6 +6,7 @@ import {
   Encounter,
   LabResult,
   FollowUpAppointment,
+  MedicalDocument,
 } from "@/lib/types/database";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -18,6 +19,7 @@ export interface PatientDataStore {
   encounters: Encounter[];
   labResults: LabResult[];
   appointments: FollowUpAppointment[];
+  medicalDocuments: MedicalDocument[];
 }
 
 const DEFAULT_PATIENT_ID = "demo-patient-001";
@@ -612,6 +614,83 @@ const initialStore: PatientDataStore = {
       created_at: "2026-08-10T15:00:00Z",
     },
   ],
+  medicalDocuments: [
+    {
+      id: "doc-001",
+      patient_id: DEFAULT_PATIENT_ID,
+      title: "Chest Radiograph (X-Ray PA View)",
+      category: "xray",
+      file_name: "Chest_XRay_PA_Aug2026.jpg",
+      file_type: "image/jpeg",
+      file_size_bytes: 2450000,
+      file_url: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80",
+      doc_date: "2026-08-10",
+      doctor: "Dr. Priya Patel",
+      hospital: "Metro General Hospital Imaging Dept",
+      notes: "Posteroanterior projection. Normal lung parenchyma, no infiltrates or consolidations. Normal cardiothoracic ratio.",
+      created_at: "2026-08-10T14:30:00Z",
+    },
+    {
+      id: "doc-002",
+      patient_id: DEFAULT_PATIENT_ID,
+      title: "Lumbar Spine MRI Scan (Sagittal & Axial T2)",
+      category: "mri_ct",
+      file_name: "Lumbar_MRI_May2026.jpg",
+      file_type: "image/jpeg",
+      file_size_bytes: 4800000,
+      file_url: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=1200&q=80",
+      doc_date: "2026-05-18",
+      doctor: "Dr. Anil Mehta",
+      hospital: "Apex Diagnostic Imaging & MRI Center",
+      notes: "High-resolution 1.5T MRI. L4-L5 disc contour demonstrates mild degenerative bulge without nerve root compression.",
+      created_at: "2026-05-18T11:00:00Z",
+    },
+    {
+      id: "doc-003",
+      patient_id: DEFAULT_PATIENT_ID,
+      title: "Abdominal Ultrasound Examination",
+      category: "ultrasound",
+      file_name: "Abdominal_Ultrasound_Jun2026.jpg",
+      file_type: "image/jpeg",
+      file_size_bytes: 1850000,
+      file_url: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=1200&q=80",
+      doc_date: "2026-06-20",
+      doctor: "Dr. Rajesh Kumar",
+      hospital: "Apex Diagnostic Center",
+      notes: "Upper abdomen sonogram. Liver demonstrates diffuse Grade 1 fatty infiltration. Gallbladder and kidneys normal bilaterally.",
+      created_at: "2026-06-20T16:15:00Z",
+    },
+    {
+      id: "doc-004",
+      patient_id: DEFAULT_PATIENT_ID,
+      title: "Comprehensive Metabolic Panel & HbA1c Report (PDF)",
+      category: "lab_pdf",
+      file_name: "Metabolic_Panel_Sept2026.pdf",
+      file_type: "application/pdf",
+      file_size_bytes: 620000,
+      file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      doc_date: "2026-09-15",
+      doctor: "Dr. Priya Patel",
+      hospital: "Metro Hospital Pathology Labs",
+      notes: "Complete metabolic panel, lipid profile, and HbA1c level (6.9%). Fasting blood glucose 114 mg/dL.",
+      created_at: "2026-09-15T09:00:00Z",
+    },
+    {
+      id: "doc-005",
+      patient_id: DEFAULT_PATIENT_ID,
+      title: "Discharge Summary & Titration Protocol (PDF)",
+      category: "discharge_summary",
+      file_name: "Discharge_Summary_Jan2026.pdf",
+      file_type: "application/pdf",
+      file_size_bytes: 850000,
+      file_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      doc_date: "2026-01-20",
+      doctor: "Dr. Priya Patel",
+      hospital: "Metro General Hospital",
+      notes: "Comprehensive hospital discharge summary detailing initial diagnosis, IV insulin protocol, and transition to oral Metformin BD.",
+      created_at: "2026-01-20T17:00:00Z",
+    },
+  ],
 };
 
 // Global in-memory singleton
@@ -1008,4 +1087,60 @@ export async function addLabResult(
   }
 
   return newResult;
+}
+
+export async function getMedicalDocuments(patientId: string): Promise<MedicalDocument[]> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return data as any;
+    }
+  } catch {
+    // fallback
+  }
+
+  const store = getStore();
+  return store.medicalDocuments.sort(
+    (a, b) => new Date(b.doc_date).getTime() - new Date(a.doc_date).getTime()
+  );
+}
+
+export async function addMedicalDocument(
+  patientId: string,
+  docData: Partial<MedicalDocument>
+): Promise<MedicalDocument> {
+  const store = getStore();
+  const id = `doc-${Date.now()}`;
+  const newDoc: MedicalDocument = {
+    id,
+    patient_id: patientId,
+    title: docData.title || "Uploaded Medical Document",
+    category: docData.category || "other",
+    file_name: docData.file_name || "medical_record.jpg",
+    file_type: docData.file_type || "image/jpeg",
+    file_size_bytes: docData.file_size_bytes || 1200000,
+    file_url:
+      docData.file_url ||
+      "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80",
+    doc_date: docData.doc_date || new Date().toISOString().split("T")[0],
+    doctor: docData.doctor || undefined,
+    hospital: docData.hospital || undefined,
+    notes: docData.notes || "",
+    created_at: new Date().toISOString(),
+  };
+
+  store.medicalDocuments.unshift(newDoc);
+  return newDoc;
+}
+
+export async function deleteMedicalDocument(docId: string): Promise<boolean> {
+  const store = getStore();
+  store.medicalDocuments = store.medicalDocuments.filter((d) => d.id !== docId);
+  return true;
 }

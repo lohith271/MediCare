@@ -12,6 +12,9 @@ import {
   updateAppointmentStatus,
   getLabResults,
   addLabResult,
+  getMedicalDocuments,
+  addMedicalDocument,
+  deleteMedicalDocument,
 } from "@/lib/data/store";
 
 async function runVerification() {
@@ -74,6 +77,38 @@ async function runVerification() {
     taken_on: "2026-10-10",
   });
   console.log("✓ Recorded lab result:", newLab.test_name, "=", newLab.value_num, newLab.unit, "Flag:", newLab.flag);
+
+  // 8. Medical documents & scans archival vault test
+  const docs = await getMedicalDocuments("demo-patient-001");
+  console.log("✓ Medical documents count:", docs.length);
+  if (docs.length === 0) throw new Error("Medical documents store should not be empty");
+  const xrays = docs.filter((d) => d.category === "xray");
+  const pdfs = docs.filter((d) => d.category.includes("pdf") || d.file_type === "application/pdf");
+  console.log(`✓ Archival breakdown: X-Rays=${xrays.length}, PDFs=${pdfs.length}`);
+
+  // 9. Store new X-Ray scan photo
+  const newScan = await addMedicalDocument("demo-patient-001", {
+    title: "Pelvic & Hip Radiograph (AP View)",
+    category: "xray",
+    file_name: "Pelvis_Hip_XRay_Oct2026.jpg",
+    file_type: "image/jpeg",
+    file_size_bytes: 2800000,
+    file_url: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80",
+    doc_date: "2026-10-10",
+    doctor: "Dr. Anil Mehta",
+    hospital: "Apex Diagnostic Imaging",
+    notes: "Normal joint space bilaterally. No cortical interruption or fracture line.",
+  });
+  console.log("✓ Stored new X-Ray scan in vault:", newScan.title, "ID:", newScan.id);
+
+  const updatedDocs = await getMedicalDocuments("demo-patient-001");
+  if (!updatedDocs.some((d) => d.id === newScan.id)) {
+    throw new Error("Newly stored scan was not found in vault");
+  }
+
+  // 10. Clean up test scan
+  await deleteMedicalDocument(newScan.id);
+  console.log("✓ Deleted test scan from vault:", newScan.id);
 
   console.log("=== ALL PATIENT FEATURE VERIFICATIONS PASSED ===");
 }
