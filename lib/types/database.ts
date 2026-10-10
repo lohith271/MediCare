@@ -34,3 +34,64 @@ export interface TrustedContact {
   relation: string;
   created_at?: string;
 }
+
+export interface Share {
+  id: string;
+  patient_id: string;
+  code_hash: string;
+  scope: string[];
+  expires_at: string;
+  revoked_at?: string | null;
+  max_uses: number;
+  use_count: number;
+  created_at?: string;
+}
+
+export type EmergencyRequestStatus = "pending" | "approved" | "declined" | "expired";
+
+export interface EmergencyRequest {
+  id: string;
+  doctor_id: string;
+  patient_id: string;
+  reason: string;
+  status: EmergencyRequestStatus;
+  request_expires_at: string;
+  access_expires_at?: string | null;
+  created_at?: string;
+}
+
+export interface ApprovalToken {
+  id: string;
+  request_id: string;
+  contact_id?: string | null;
+  token_hash: string;
+  used_at?: string | null;
+  expires_at: string;
+  created_at?: string;
+}
+
+export interface AccessLog {
+  id: string;
+  patient_id: string;
+  actor_type: string;
+  actor_id: string;
+  action: string;
+  detail?: Record<string, any>;
+  ip?: string;
+  created_at?: string;
+}
+
+export interface InboxItem {
+  id: string;
+  to_email: string;
+  subject: string;
+  body: string;
+  link?: string | null;
+  created_at?: string;
+}
+
+export interface RateLimit {
+  key: string;
+  window_start: string;
+  count: number;
+}
