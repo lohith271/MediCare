@@ -24,6 +24,8 @@ import {
   FlaskConical,
   BadgeAlert,
 } from "lucide-react";
+import { TodayCard } from "@/components/adherence/TodayCard";
+import { StreakCalendar } from "@/components/adherence/StreakCalendar";
 import type {
   ClinicalSummary,
   SummaryMedication,
@@ -74,6 +76,7 @@ export default function ClinicalSummaryPage() {
   const [newSubstance, setNewSubstance] = useState("");
   const [newReaction, setNewReaction] = useState("");
   const [submittingReaction, setSubmittingReaction] = useState(false);
+  const [adherenceRefreshKey, setAdherenceRefreshKey] = useState(0);
 
   const [isPending, startTransition] = useTransition();
 
@@ -300,6 +303,22 @@ export default function ClinicalSummaryPage() {
             Print Handoff
           </button>
         </div>
+      </div>
+
+      {/* TODAY'S DOSES (First thing on the patient home page, above the fold) */}
+      <div className="print:hidden">
+        <TodayCard
+          key={`today-card-${adherenceRefreshKey}`}
+          onRefreshCalendar={() => setAdherenceRefreshKey((k) => k + 1)}
+        />
+      </div>
+
+      {/* STREAK CALENDAR (Below the Today card, reached by scrolling) */}
+      <div className="print:hidden">
+        <StreakCalendar
+          key={`streak-calendar-${adherenceRefreshKey}`}
+          onRefreshToday={() => setAdherenceRefreshKey((k) => k + 1)}
+        />
       </div>
 
       {/* Safety Alerts Banner (Always worded 'Needs doctor review') */}
